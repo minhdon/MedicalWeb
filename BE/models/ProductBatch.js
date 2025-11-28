@@ -1,13 +1,12 @@
 import mongoose from 'mongoose'
 
 const productBatchSchema = new mongoose.Schema({
-    batchId: {type: String, required: true, index: true, unique: true},
-    productId: {type: String, ref: 'Product', required: true},
-    purchaseInvoiceId: {type: String, ref: 'PurchaseInvoice', required: true},
-    manufactureDate: {type: Date, required: true}, 
+    productId: {type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true},
+    purchaseInvoiceId: {type: mongoose.Schema.Types.ObjectId, ref: 'PurchaseInvoice', required: true},
+    manufactureDate: {type: Date, required: true},
     expiryDate: {type: Date, required: true},
-    quantity: {type: Number},
-    remainingQuantity: {type: Number},
+    quantity: {type: Number, required: true},
+    remainingQuantity: {type: Number, required: true},
     dosage: {type: String, required: true},
     administration: {type: String, required: true}
 }, {timestamps: true});

@@ -1,14 +1,13 @@
 import mongoose from 'mongoose'
 
 const productSchema = new mongoose.Schema({
-    productId: { type: String, required: true, index: true, unique: true },
     productName: { type: String, required: true },
-    manufacturerId: { type: String, ref: 'Manufacturer', required: true },
-    typeId: { type: String, ref: 'Category', required: true },
-    img: { type: Image, required: true },
-    productDesc: { type: String, required: true },
-    packagingType: { type: String, Enumerator: ['Blister', 'Box', 'Bottle', 'Tube', 'Sachet', 'Ampoule', 'Vial', 'Bag'], required: true },
-    status: { type: Boolean }
+    manufacturerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Manufacturer', required: true },
+    categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
+    img: { type: String },
+    productDesc: { type: String },
+    packagingType: { type: String, enum: ['Blister', 'Box', 'Bottle', 'Tube', 'Sachet', 'Ampoule', 'Vial', 'Bag'] },
+    status: { type: Boolean, default: true }
 }, { timestamps: true });
 
 export const Product = mongoose.model('Product', productSchema)

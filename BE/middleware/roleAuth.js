@@ -1,10 +1,10 @@
 import { Role } from '../models/Role.js';
 
-// Middleware kiểm tra quyền dựa trên roleId
+// Middleware kiểm tra quyền dựa trên roleName
 export const requireRole = (...allowedRoles) => {
   return async (req, res, next) => {
     try {
-      // Lấy roleId từ user hoặc admin đã được authenticate
+      // Lấy roleId từ user hoặc admin (giả sử có field roleId trong User/Admin)
       const roleId = req.user?.roleId || req.admin?.roleId;
 
       if (!roleId) {
@@ -14,8 +14,8 @@ export const requireRole = (...allowedRoles) => {
         });
       }
 
-      // Tìm role trong database
-      const role = await Role.findOne({ roleId });
+      // Tìm role trong database bằng _id
+      const role = await Role.findById(roleId);
 
       if (!role) {
         return res.status(403).json({
@@ -24,8 +24,8 @@ export const requireRole = (...allowedRoles) => {
         });
       }
 
-      // Kiểm tra role có trong danh sách được phép không
-      if (!allowedRoles.includes(role.roleId)) {
+      // Kiểm tra roleName có trong danh sách được phép không
+      if (!allowedRoles.includes(role.roleName)) {
         return res.status(403).json({
           success: false,
           message: `Bạn không có quyền truy cập. Yêu cầu role: ${allowedRoles.join(', ')}`
@@ -34,7 +34,7 @@ export const requireRole = (...allowedRoles) => {
 
       // Gắn thông tin role vào request
       req.role = {
-        roleId: role.roleId,
+        id: role._id,
         roleName: role.roleName,
         description: role.description
       };
