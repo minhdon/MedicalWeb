@@ -5,6 +5,7 @@ const adminSchema = new mongoose.Schema({
     passWord: {type: String, required: true},
     address: {type: String},
     email: {type: String},
+    DoB: {type: Date},
     phoneNum: {type: String},
     sex: {type: Boolean}
 }, {timestamps: true});
