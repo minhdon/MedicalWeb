@@ -76,7 +76,15 @@ export const resetPasswordRequestSchema = Joi.object({
 })
 
 export const resetPasswordSchema = Joi.object({
-    token: Joi.string().required(),
+    email: Joi.string()
+    .email()
+    .required()
+    .messages({
+        'any.required': 'Email là bắt buộc!',
+        'string.email': 'Email không hợp lệ!',
+        'string.empty': 'Email không được để trống!'
+    }),
+    otp: Joi.string().length(6).required(),
     newPassword: Joi.string()
     .required()
     .min(8)
