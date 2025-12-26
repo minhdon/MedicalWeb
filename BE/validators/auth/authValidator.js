@@ -18,30 +18,35 @@ export const signUpSchema = Joi.object({
     .messages({
         'any.required': 'Mật khẩu là bắt buộc!',
         'string.empty': 'Mật khẩu không được để trống!',
-        'string.pattern.base': 'Mật khẩu phải có ít nhất 1 chữ thường, 1 chữ hoa và 1 ký tự!',
+        'string.pattern.base': 'Mật khẩu phải có ít nhất 1 chữ thường, 1 chữ hoa và 1 chữ số!',
         'string.min': 'Mật khẩu phải có ít nhất 8 ký tự!'
     }),
     email: Joi.string()
     .email()
-    .required()
+    .optional()
     .messages({
-        'any.required': 'Email là bắt buộc!',
-        'string.email': 'Email không hợp lệ!',
-        'string.empty': 'Email không được để trống!'
+        'string.email': 'Email không hợp lệ!'
     }),
-    address: Joi.string().optional(),
-    DoB: Joi.date().optional(),
-    phoneNum: Joi.string()
-    .pattern(/^[0-9]{10}$/)
-    .messages({
-        'string.pattern.base': 'Số điện thoại phải có 10 chữ số!'
-    }),
+    address: Joi.string().optional().allow(''),
+    DoB: Joi.string().optional().allow(''),
+    phoneNum: Joi.string().optional().allow(''),
     sex: Joi.boolean().optional()
 })
 
 export const loginSchema = Joi.object({
-    userName: Joi.string().required(),
-    passWord: Joi.string().required()
+    email: Joi.string()
+    .email()
+    .optional()
+    .messages({
+        'string.email': 'Email không hợp lệ!'
+    }),
+    userName: Joi.string().optional(),
+    passWord: Joi.string().required().messages({
+        'any.required': 'Mật khẩu là bắt buộc!',
+        'string.empty': 'Mật khẩu không được để trống!'
+    })
+}).or('email', 'userName').messages({
+    'object.missing': 'Vui lòng nhập email hoặc tên đăng nhập!'
 })
 
 export const updatePasswordSchema = Joi.object({
