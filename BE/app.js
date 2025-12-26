@@ -1,9 +1,9 @@
 import express from 'express'
 import mongoose from 'mongoose'
 import dotenv from 'dotenv'
+import cors from 'cors'
 import { logger, errorHandler } from './middleware/index.js'
 import authRoutes from './routes/auth.js'
-
 // Import routes
 // import authRoutes from './routes/auth.js'
 // import userRoutes from './routes/user.js'
@@ -13,6 +13,10 @@ import authRoutes from './routes/auth.js'
 dotenv.config()
 
 const app = express()
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true, 
+}))
 const PORT = process.env.PORT || 3000
 
 // Middleware để parse JSON
