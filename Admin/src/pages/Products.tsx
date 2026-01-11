@@ -1,0 +1,505 @@
+import { useState, useEffect } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { medicines as initialMedicines, categories } from '@/data/mockData';
+import { Medicine } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+export default function Products() {
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch Products
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('http://127.0.0.1:3000/api/product/getAll?limit=100'); // Fetch limit 100 for admin
+      const data = await res.json();
+
+      if (data && data.data) {
+        const mappedProducts: Medicine[] = data.data.map((p: any) => ({
+          id: p._id,
+          name: p.productName,
+          description: p.productDesc || '',
+          category: p.category || 'Dược phẩm',
+          price: p.price,
+          costPrice: 0, // Backend might not have this public
+          stock: p.variants?.[0]?.quantity || 100, // Mock stock or fetch batch
+          unit: p.unit,
+          manufacturer: p.manufacturer || 'Đang cập nhật',
+          ingredients: p.ingredients || '',
+          usage: p.usage || '',
+          preservation: p.preservation || '',
+          sideEffects: p.sideEffects || '',
+          precautions: p.precautions || '',
+          brand: p.brand || '',
+          origin: p.origin || '', // Backend now returns explicit origin
+          requiresPrescription: p.category === 'Thuốc theo đơn',
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          variants: p.variants || []
+        }));
+        setMedicines(mappedProducts);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(`Lỗi: ${error instanceof Error ? error.message : 'Không xác định'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Re-declare state vars map to existing code
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    category: '',
+    price: '',
+    costPrice: '',
+    unit: 'Hộp',
+    manufacturer: '',
+    ingredients: '',
+    usage: '',
+    preservation: '',
+    sideEffects: '',
+    precautions: '',
+    brand: '',
+    origin: '',
+    requiresPrescription: false,
+  });
+
+  const filteredMedicines = medicines.filter((medicine) => {
+    const matchesSearch = medicine.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || medicine.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      category: '',
+      price: '',
+      costPrice: '',
+      unit: 'Hộp',
+      manufacturer: '',
+      ingredients: '',
+      usage: '',
+      preservation: '',
+      sideEffects: '',
+      precautions: '',
+      brand: '',
+      origin: '',
+      requiresPrescription: false,
+    });
+    setEditingMedicine(null);
+    setVariants([]);
+  };
+
+  const handleEdit = (medicine: Medicine) => {
+    setEditingMedicine(medicine);
+    setFormData({
+      name: medicine.name,
+      description: medicine.description,
+      category: medicine.category,
+      price: medicine.price.toString(),
+      costPrice: medicine.costPrice.toString(),
+      unit: medicine.unit,
+      manufacturer: medicine.manufacturer,
+      ingredients: medicine.ingredients || '',
+      usage: medicine.usage || '',
+      preservation: medicine.preservation || '',
+      sideEffects: medicine.sideEffects || '',
+      precautions: medicine.precautions || '',
+      brand: medicine.brand || '',
+      origin: medicine.origin || '',
+      requiresPrescription: medicine.requiresPrescription,
+    });
+    setVariants(medicine.variants || []);
+    setIsDialogOpen(true);
+  };
+
+  const [variants, setVariants] = useState<{ unit: string; price: number }[]>([]);
+
+  const handleAddVariant = () => {
+    setVariants([...variants, { unit: 'Hộp', price: 0 }]);
+  };
+
+  const handleVariantChange = (index: number, field: 'unit' | 'price', value: string | number) => {
+    const newVariants = [...variants];
+    if (field === 'price') newVariants[index].price = Number(value);
+    else newVariants[index].unit = String(value);
+    setVariants(newVariants);
+  };
+
+  const handleRemoveVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
+
+
+  const handleSubmit = () => {
+    if (!formData.name || !formData.category || !formData.price) {
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    if (editingMedicine) {
+      setMedicines((prev) =>
+        prev.map((m) =>
+          m.id === editingMedicine.id
+            ? {
+              ...m,
+              ...formData,
+              price: parseFloat(formData.price),
+              costPrice: parseFloat(formData.costPrice) || 0,
+              updatedAt: now,
+              variants: variants,
+            }
+            : m
+        )
+      );
+      toast.success('Đã cập nhật sản phẩm thành công');
+    } else {
+      const newMedicine: Medicine = {
+        id: Date.now().toString(),
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        price: parseFloat(formData.price),
+        costPrice: parseFloat(formData.costPrice) || 0,
+        stock: 0, // Default to 0, managed by warehouse
+        unit: formData.unit,
+        manufacturer: formData.manufacturer,
+        requiresPrescription: formData.requiresPrescription,
+        createdAt: now,
+        updatedAt: now,
+        variants: variants,
+      };
+      setMedicines((prev) => [newMedicine, ...prev]);
+      toast.success('Đã thêm sản phẩm mới thành công');
+    }
+
+    setIsDialogOpen(false);
+    resetForm();
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
+      setMedicines((prev) => prev.filter((m) => m.id !== id));
+      toast.success('Đã xóa sản phẩm');
+    }
+  };
+
+  return (
+    <DashboardLayout title="Quản lý sản phẩm" subtitle="Thêm, sửa, xóa sản phẩm thuốc">
+      <div className="rounded-xl bg-card p-6 card-shadow">
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Tìm kiếm sản phẩm..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Danh mục" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả danh mục</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Thêm sản phẩm
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingMedicine ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Tên sản phẩm *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Danh mục *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn danh mục" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="brand">Thương hiệu</Label>
+                    <Input
+                      id="brand"
+                      value={formData.brand}
+                      onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="origin">Xuất xứ</Label>
+                    <Input
+                      id="origin"
+                      value={formData.origin}
+                      onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Mô tả chung</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ingredients">Thành phần</Label>
+                  <Textarea
+                    id="ingredients"
+                    value={formData.ingredients}
+                    onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="usage">Công dụng / Cách dùng</Label>
+                    <Textarea
+                      id="usage"
+                      value={formData.usage}
+                      onChange={(e) => setFormData({ ...formData, usage: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="preservation">Bảo quản</Label>
+                    <Textarea
+                      id="preservation"
+                      value={formData.preservation}
+                      onChange={(e) => setFormData({ ...formData, preservation: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="sideEffects">Tác dụng phụ</Label>
+                    <Textarea
+                      id="sideEffects"
+                      value={formData.sideEffects}
+                      onChange={(e) => setFormData({ ...formData, sideEffects: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="precautions">Lưu ý</Label>
+                    <Textarea
+                      id="precautions"
+                      value={formData.precautions}
+                      onChange={(e) => setFormData({ ...formData, precautions: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Giá bán (VNĐ) *</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="costPrice">Giá nhập (VNĐ)</Label>
+                    <Input
+                      id="costPrice"
+                      type="number"
+                      value={formData.costPrice}
+                      onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="unit">Đơn vị</Label>
+                    <Select
+                      value={formData.unit}
+                      onValueChange={(value) => setFormData({ ...formData, unit: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Hộp">Hộp</SelectItem>
+                        <SelectItem value="Vỉ">Vỉ</SelectItem>
+                        <SelectItem value="Chai">Chai</SelectItem>
+                        <SelectItem value="Lọ">Lọ</SelectItem>
+                        <SelectItem value="Tuýp">Tuýp</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="prescription"
+                    checked={formData.requiresPrescription}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, requiresPrescription: checked })
+                    }
+                  />
+                  <Label htmlFor="prescription">Yêu cầu đơn thuốc</Label>
+                </div>
+
+                <Button onClick={handleSubmit} className="w-full">
+                  {editingMedicine ? 'Cập nhật' : 'Thêm sản phẩm'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tên sản phẩm</TableHead>
+                <TableHead>Danh mục</TableHead>
+                <TableHead>Giá bán</TableHead>
+                <TableHead>Tồn kho</TableHead>
+                <TableHead>Thương hiệu</TableHead>
+                <TableHead>Xuất xứ</TableHead>
+                <TableHead>Cần kê đơn</TableHead>
+                <TableHead className="text-right">Thao tác</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredMedicines.map((medicine) => (
+                <TableRow key={medicine.id}>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{medicine.name}</p>
+                      <p className="text-sm text-muted-foreground">{medicine.description}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{medicine.category}</Badge>
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    {medicine.price.toLocaleString('vi-VN')}đ
+                  </TableCell>
+                  <TableCell>
+                    <span className={medicine.stock < 100 ? 'text-warning font-medium' : ''}>
+                      {medicine.stock} {medicine.unit}
+                    </span>
+                  </TableCell>
+                  <TableCell>{medicine.brand}</TableCell>
+                  <TableCell>{medicine.origin || medicine.manufacturer}</TableCell>
+                  <TableCell>
+                    {medicine.requiresPrescription ? (
+                      <Badge variant="destructive">Có</Badge>
+                    ) : (
+                      <Badge variant="secondary">Không</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(medicine)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(medicine.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </DashboardLayout >
+  );
+}

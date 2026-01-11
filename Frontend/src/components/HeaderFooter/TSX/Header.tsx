@@ -134,11 +134,9 @@ export const Header = () => {
             onMouseEnter={handleProductMouseEnter}
             onMouseLeave={handleProductMouseLeave}
           >
-            <a href="">Tất cả sản phẩm</a>
-            <a href="">Thuốc theo đơn</a>
-            <a href="">Thuốc không theo đơn</a>
-            <a href="">Thực phẩm chức năng</a>
-            <a href="">Sản phẩm bán chạy</a>
+            <a href="/product">Tất cả sản phẩm</a>
+            <a href="/product?filter=prescription">Thuốc theo đơn</a>
+            <a href="/product?filter=otc">Thuốc không theo đơn</a>
           </div>
           <input
             type="text"

@@ -1,21 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import styles from "../CSS/ProductNavigation.module.css";
 
 export const ProductNavigation = () => {
   const [activeTab, setActiveTab] = useState(0);
-
-  const handleTabClick = (index: number, event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    setActiveTab(index);
-  };
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const tabs = [
-    "Tất cả sản phẩm",
-    "Thuốc theo đơn",
-    "Thuốc không theo đơn",
-    "Dược phẩm chức năng",
-    "Sản phẩm bán chạy",
+    { label: "Tất cả sản phẩm", filter: "" },
+    { label: "Thuốc theo đơn", filter: "prescription" },
+    { label: "Thuốc không theo đơn", filter: "otc" },
   ];
+
+  // Sync active tab with URL
+  useEffect(() => {
+    const currentFilter = searchParams.get("filter") || "";
+    const index = tabs.findIndex(t => t.filter === currentFilter);
+    setActiveTab(index >= 0 ? index : 0);
+  }, [searchParams]);
+
+  const handleTabClick = (index: number, filter: string, event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    setActiveTab(index);
+    if (filter) {
+      navigate(`/product?filter=${filter}`);
+    } else {
+      navigate(`/product`);
+    }
+  };
 
   return (
     <>
@@ -26,9 +39,9 @@ export const ProductNavigation = () => {
               key={index}
               href="#"
               className={`${styles.tab} ${activeTab === index ? styles.active : ""}`}
-              onClick={(e) => handleTabClick(index, e)}
+              onClick={(e) => handleTabClick(index, tab.filter, e)}
             >
-              {tab}
+              {tab.label}
             </a>
           ))}
         </nav>

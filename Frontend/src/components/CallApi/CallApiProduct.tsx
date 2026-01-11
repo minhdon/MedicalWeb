@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_URL = "http://127.0.0.1:8000/?format=json";
+const API_URL = "http://localhost:3000/api/product/getAll";
 
 // Export interface để File hiển thị có thể dùng lại
 export interface ApiData {
@@ -11,7 +11,68 @@ export interface ApiData {
   img: string;
   productDesc: string;
   quantity?: number;
+  category?: string;
+  // Fields chi tiết
+  unit?: string;
+  variants?: { unit: string; price: number }[];
+  brand?: string;
+  origin?: string;
+  manufacturer?: string;
+  ingredients?: string;
+  usage?: string;
+  preservation?: string;
 }
+
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalDocs: number;
+  limit: number;
+}
+
+export interface ApiResponse {
+  data: ApiData[];
+  pagination: PaginationInfo;
+}
+
+// Hàm Fetch thủ công (Hỗ trợ Pagination & Prefetching & Filter)
+export const fetchProductsByPage = async (page: number, limit: number = 8, filters: Record<string, any> = {}) => {
+  const params = new URLSearchParams();
+  params.append("page", page.toString());
+  params.append("limit", limit.toString());
+
+  // Append filters
+  Object.keys(filters).forEach(key => {
+    const value = filters[key];
+    if (Array.isArray(value)) {
+      value.forEach(v => params.append(key, v));
+    } else if (value !== undefined && value !== null && value !== "") {
+      params.append(key, value.toString());
+    }
+  });
+
+  const response = await fetch(`${API_URL}?${params.toString()}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return await response.json() as ApiResponse;
+};
+
+// Hàm Fetch Chi tiết
+export const fetchProductById = async (id: string | number) => {
+  const detailUrl = API_URL.replace('/getAll', '') + `/${id}`;
+  const response = await fetch(detailUrl, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return await response.json() as ApiData;
+};
 
 export const useProductFetcher = () => {
   const [data, setData] = useState<ApiData[] | null>(null);
@@ -32,8 +93,7 @@ export const useProductFetcher = () => {
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(
-            `HTTP error! status: ${response.status} - ${
-              errorText || response.statusText
+            `HTTP error! status: ${response.status} - ${errorText || response.statusText
             }`
           );
         }

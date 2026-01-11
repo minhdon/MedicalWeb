@@ -4,18 +4,14 @@ import dotenv from 'dotenv'
 import cors from 'cors'
 import { logger, errorHandler } from './middleware/index.js'
 import authRoutes from './routes/auth.js'
-// Import routes
-// import authRoutes from './routes/auth.js'
-// import userRoutes from './routes/user.js'
-// import adminRoutes from './routes/admin.js'
-// import productRoutes from './routes/product.js'
+import productRoutes from './routes/product.js'
 
 dotenv.config()
 
 const app = express()
 app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true, 
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'],
+  credentials: true,
 }))
 const PORT = process.env.PORT || 3000
 
@@ -36,8 +32,11 @@ app.get('/', (req, res) => {
   res.send('Hello Luc dz')
 });
 
-// Mount auth routes
+import saleInvoiceRoutes from './routes/saleInvoice.js'
+// Mount routes
 app.use('/api/auth', authRoutes)
+app.use('/api/product', productRoutes) // Mount product routes
+app.use('/api/sale-invoice', saleInvoiceRoutes)
 
 app.use(errorHandler)
 // Start server

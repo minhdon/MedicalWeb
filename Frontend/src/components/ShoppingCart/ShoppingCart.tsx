@@ -1,15 +1,21 @@
 import styles from "./ShoppingCart.module.css";
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { paymentPerProductContext } from "../useContext/PaymentPerProduct";
 import { IsInfoContext } from "../useContext/checkInfoContext";
+import { createOrderAPI } from "../CallApi/CallApiSaleInvoice";
+import { useNavigate, useSearchParams } from "react-router";
+
 interface CartItem {
-  id: number;
+  _id: string; // Updated to _id
+  id?: number; // Optional backward compatibility
   productName: string;
   cost: number;
   status: boolean;
   img: string;
   productDesc: string;
   quantity: number;
+  unit?: string;
+  variants?: any[];
   [key: string]: unknown;
 }
 
@@ -55,56 +61,136 @@ const ChevronRight = () => (
 );
 
 const ShoppingCart: React.FC = () => {
-  // Dữ liệu giả lập
-  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    const stored = localStorage.getItem("shoppingCart");
-    return stored ? JSON.parse(stored) : [];
-  });
-  const isInfoContext = useContext(IsInfoContext);
-  const handleChangeQuantity = (id: number, count: number) => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const isBuyNowMode = searchParams.get("mode") === "buy_now";
+  // Determine storage key
+  const storageKey = isBuyNowMode ? "buyNowCart" : "shoppingCart";
+
+  // Dữ liệu giả lập - Initialize with empty array first, then load in Effect
+  // OR initialize directly but logic is cleaner with Effect for mode switching
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  // Load Cart Data Effect
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      setCartItems(stored ? JSON.parse(stored) : []);
+    } catch (e) {
+      console.error("Error parsing cart", e);
+      setCartItems([]);
+    }
+  }, [storageKey]); // Re-run when mode changes
+
+  const { isInfo, customerData } = useContext(IsInfoContext);
+  const products = useContext(paymentPerProductContext);
+  const [isOrdering, setIsOrdering] = useState(false);
+
+  // FIX: Use _id AND unit to identify item
+  const handleChangeQuantity = (id: string, unit: string, count: number) => {
+    // ... (keep existing logic)
     const newItems = cartItems.map((item) => {
-      if (item.id === id && item.quantity + count >= 1) {
+      if (item._id === id && item.unit === unit && item.quantity + count >= 1) {
         return { ...item, quantity: item.quantity + count };
       }
       return item;
     });
-
-    // Cập nhật State (để UI đổi ngay lập tức)
     setCartItems(newItems);
-
-    // Cập nhật LocalStorage (để lưu lại)
-    localStorage.setItem("shoppingCart", JSON.stringify(newItems));
+    localStorage.setItem(storageKey, JSON.stringify(newItems));
   };
 
-  const products = useContext(paymentPerProductContext);
 
-  // Tính tổng từ `cartItems`
+  // Toggle Checkbox Status
+  const handleToggleStatus = (id: string, unit: string) => {
+    const newItems = cartItems.map((item) => {
+      if (item._id === id && item.unit === unit) {
+        return { ...item, status: !item.status };
+      }
+      return item;
+    });
+    setCartItems(newItems);
+    localStorage.setItem(storageKey, JSON.stringify(newItems));
+  };
+
+  const handleToggleAll = (checked: boolean) => {
+    const newItems = cartItems.map(item => ({ ...item, status: checked }));
+    setCartItems(newItems);
+    localStorage.setItem(storageKey, JSON.stringify(newItems));
+  };
+
+  // Displayed Items chính là cartItems (vì đã load đúng nguồn)
+  const displayedItems = cartItems;
+
+  // Tính tổng từ `cartItems` (Chỉ tính item được chọn)
   const totalAmount: number = cartItems.reduce(
     (sum: number, item: CartItem) => {
+      if (!item.status) return sum;
       const cost = Number(item.cost) || 0;
       const qty = Number(item.quantity) || 0;
       return sum + cost * qty;
     },
     0
   );
-  const handleCheckIsInfo = () => {
-    if (isInfoContext.isInfo === false) {
-      alert("Vui lòng điền đầy đủ thông tin người nhận hàng!");
-    
+
+  // ... (handleCheckout logic remains same)
+  const handleCheckout = async () => {
+    // 1. Validate Info
+    if (!isInfo) {
+      alert("Vui lòng điền đầy đủ thông tin người nhận hàng (Tên, SĐT, Địa chỉ)!");
+      return;
+    }
+
+    const selectedItems = cartItems.filter(item => item.status);
+
+    if (selectedItems.length === 0) {
+      alert("Vui lòng chọn ít nhất một sản phẩm để thanh toán!");
+      return;
+    }
+
+    if (!window.confirm(`Xác nhận đặt hàng ${selectedItems.length} sản phẩm đã chọn?`)) return;
+
+    setIsOrdering(true);
+    try {
+      const itemsPayload = selectedItems.map(item => ({
+        id: item._id,
+        quantity: item.quantity,
+        cost: Number(item.cost),
+        unit: item.unit || 'Hộp',
+        productName: item.productName
+      }));
+
+      const orderPayload = {
+        customerInfo: customerData,
+        cartItems: itemsPayload
+      };
+
+      const result = await createOrderAPI(orderPayload);
+      alert(`Đặt hàng thành công! Mã đơn: ${result.invoiceId} \nTổng tiền: ${result.totalBill?.toLocaleString()}đ`);
+
+      // Remove Paid Items
+      const remainingItems = cartItems.filter(item => !item.status);
+      setCartItems(remainingItems);
+      localStorage.setItem(storageKey, JSON.stringify(remainingItems));
+
+      window.location.href = "/";
+    } catch (err: any) {
+      console.error(err);
+      alert(`Lỗi đặt hàng: ${err.message}`);
+    } finally {
+      setIsOrdering(false);
     }
   };
 
-  const removeItemByX = (valueA: number): CartItem[] => {
-    const newItems = cartItems.filter((item) => item.id !== valueA);
-    // Cập nhật state và localStorage ngay lập tức
+
+  // FIX: Remove by ID and Unit
+  const removeItemByX = (id: string, unit: string): CartItem[] => {
+    const newItems = cartItems.filter((item) => !(item._id === id && item.unit === unit));
     setCartItems(newItems);
     try {
-      localStorage.setItem("shoppingCart", JSON.stringify(newItems));
+      localStorage.setItem(storageKey, JSON.stringify(newItems));
     } catch (e) {
       console.error("Lỗi khi cập nhật localStorage:", e);
     }
-    if (products && products.handleDeleteProduct)
-      products.handleDeleteProduct(valueA);
     return newItems;
   };
   // Khi bấm nút xóa
@@ -113,6 +199,8 @@ const ShoppingCart: React.FC = () => {
     <div className={styles.hero}>
       <div className={styles.container}>
         <div className={styles.leftPanel}>
+
+
           <div className={styles.freeShipBanner}>
             Miễn phí vận chuyển&nbsp;
             <span style={{ color: "#333" }}>
@@ -126,11 +214,13 @@ const ShoppingCart: React.FC = () => {
               <input
                 type="checkbox"
                 className={styles.checkbox}
-                defaultChecked
+                onChange={(e) => handleToggleAll(e.target.checked)}
+                checked={cartItems.length > 0 && cartItems.every(i => i.status)}
+                disabled={isBuyNowMode}
               />
             </div>
             <div className={styles.colProduct}>
-              Chọn tất cả ({products.paymentProducts.length})
+              {isBuyNowMode ? 'Sản phẩm mua ngay' : `Chọn tất cả (${cartItems.length})`}
             </div>
             <div className={styles.colPrice}>Giá thành</div>
             <div className={styles.colQty}>Số lượng</div>
@@ -139,14 +229,16 @@ const ShoppingCart: React.FC = () => {
           </div>
 
           {/* Product Item Row */}
-          {cartItems.map((item: CartItem) => (
-            <div key={item.id}>
+          {displayedItems.map((item: CartItem, index) => (
+            // FIX: Unique Key using ID + Unit + Index (Index fallback for safety)
+            <div key={`${item._id}-${item.unit}-${index}`}>
               <div className={styles.cartItem}>
                 <div className={styles.colCheckbox}>
                   <input
                     type="checkbox"
                     className={styles.checkbox}
-                    defaultChecked
+                    checked={!!item.status}
+                    onChange={() => handleToggleStatus(item._id, item.unit || '')}
                   />
                 </div>
 
@@ -174,7 +266,7 @@ const ShoppingCart: React.FC = () => {
                   <div className={styles.qtyGroup}>
                     <button
                       className={styles.qtyBtn}
-                      onClick={() => handleChangeQuantity(item.id, -1)}
+                      onClick={() => handleChangeQuantity(item._id, item.unit || '', -1)}
                     >
                       -
                     </button>
@@ -186,7 +278,7 @@ const ShoppingCart: React.FC = () => {
                     />
                     <button
                       className={styles.qtyBtn}
-                      onClick={() => handleChangeQuantity(item.id, 1)}
+                      onClick={() => handleChangeQuantity(item._id, item.unit || '', 1)}
                     >
                       +
                     </button>
@@ -194,17 +286,51 @@ const ShoppingCart: React.FC = () => {
                 </div>
 
                 <div className={styles.colUnit}>
-                  <select className={styles.unitSelect}>
-                    <option>Hộp</option>
-                    <option>Lọ</option>
-                  </select>
+                  {item.variants && item.variants.length > 0 ? (
+                    <select
+                      className={styles.unitSelect}
+                      value={item.unit}
+                      onChange={(e) => {
+                        const newUnit = e.target.value;
+                        const variant = item.variants?.find((v: any) => v.unit === newUnit);
+                        // Check duplicate before changing unit
+                        const isDuplicate = cartItems.some(ci => ci._id === item._id && ci.unit === newUnit && ci !== item);
+
+                        if (isDuplicate) {
+                          alert(`Trong giỏ hàng đã có sản phẩm này với đơn vị ${newUnit}. Vui lòng tăng số lượng sản phẩm đó thay vì đổi đơn vị.`);
+                          return;
+                        }
+
+                        if (variant) {
+                          const newItems = cartItems.map((ci) => {
+                            // Only update THIS item (identified by id AND old unit)
+                            if (ci._id === item._id && ci.unit === item.unit) {
+                              return { ...ci, unit: newUnit, cost: variant.price };
+                            }
+                            return ci;
+                          });
+                          setCartItems(newItems);
+                          localStorage.setItem("shoppingCart", JSON.stringify(newItems));
+                        }
+                      }}
+                    >
+                      {item.variants.map((v: any, idx: number) => (
+                        <option key={idx} value={v.unit}>
+                          {v.unit}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span style={{ fontWeight: 500, color: "#333" }}>{item.unit}</span>
+                  )}
                 </div>
 
                 <div className={styles.colDelete}>
                   <button
                     className={styles.deleteBtn}
                     onClick={() => {
-                      removeItemByX(item.id);
+                      // FIX: Remove specific unit item
+                      removeItemByX(item._id, item.unit || '');
                     }}
                   >
                     <TrashIcon />
@@ -230,7 +356,7 @@ const ShoppingCart: React.FC = () => {
           </div>
 
           <div className={styles.summaryRow}>
-            <span>Tổng tiền</span>
+            <span>Tổng tiền ({cartItems.filter(i => i.status).length} sản phẩm)</span>
             <span className={styles.summaryVal}>
               {totalAmount.toLocaleString("vi-VN")}đ
             </span>
@@ -249,11 +375,11 @@ const ShoppingCart: React.FC = () => {
 
           <button
             className={styles.btnCheckout}
-            onClick={() => {
-             handleCheckIsInfo()
-            }}
+            disabled={isOrdering}
+            style={{ opacity: isOrdering ? 0.7 : 1, cursor: isOrdering ? 'wait' : 'pointer', backgroundColor: '#1d48ba' }}
+            onClick={handleCheckout}
           >
-            Mua hàng
+            {isOrdering ? 'Đang xử lý...' : 'Mua hàng'}
           </button>
         </div>
       </div>

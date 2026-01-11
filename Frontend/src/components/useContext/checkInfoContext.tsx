@@ -1,13 +1,34 @@
 import { createContext, useState, type ReactNode } from "react";
 
+export type CustomerDataType = {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  note?: string;
+};
+
 export type IsInfoContextType = {
   isInfo: boolean;
   setIsInfo: (newIsInfo: boolean) => void;
+  customerData: CustomerDataType;
+  setCustomerData: (data: CustomerDataType) => void;
+};
+
+const defaultCustomerData: CustomerDataType = {
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
 };
 
 const IsInfoContext = createContext<IsInfoContextType>({
   isInfo: false,
-  setIsInfo: () => {},
+  setIsInfo: () => { },
+  customerData: defaultCustomerData,
+  setCustomerData: () => { },
 });
 
 type IsInfoProviderProps = {
@@ -16,10 +37,13 @@ type IsInfoProviderProps = {
 
 function IsInfoProvider({ children }: IsInfoProviderProps) {
   const [isInfo, setIsInfo] = useState(false);
+  const [customerData, setCustomerData] = useState<CustomerDataType>(defaultCustomerData);
 
   const value = {
     isInfo,
     setIsInfo,
+    customerData,
+    setCustomerData,
   };
 
   return (

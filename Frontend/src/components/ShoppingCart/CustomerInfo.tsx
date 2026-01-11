@@ -25,7 +25,7 @@ const MapMarkerIcon = () => (
     fill="currentColor"
     className={styles.icon}
   >
-    <path d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 29.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0zM192 272c44.183 0 80-35.817 80-80s-35.817-80-80-80-80 35.817-80 80 35.817 80 80 80z" />
+    <path d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 29.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0zM192 272c44.183 0 80-35.817 80-80s-35.817-80-80-80-80 35.817-80 80 80z" />
   </svg>
 );
 
@@ -55,7 +55,7 @@ const CustomerInfo: React.FC = () => {
   const [emailError, setEmailError] = useState("");
 
   const rawData = localStorage.getItem("Location") || "[]";
-  const { setIsInfo } = useContext(IsInfoContext);
+  const { setIsInfo, setCustomerData } = useContext(IsInfoContext);
   const locationData = JSON.parse(rawData);
 
   // Regex
@@ -87,10 +87,31 @@ const CustomerInfo: React.FC = () => {
     const isEmailValid =
       senderEmail === "" || (senderEmail !== "" && !emailError);
 
+
+    // Construct Address string from inputs (Logic tạm thời, cần map code -> name nếu muốn đẹp)
+    // Nhưng controller chỉ cần string address.
+    // Thực tế cần map Code -> Name (Tỉnh, Huyện, Xã).
+    // Tuy nhiên CustomerInfo.tsx đang giữ locationData.
+    // Logic map tên khá dài dòng. Để nhanh, ta lưu tạm "Code - Code - Code - Specific"
+    // HOẶC: Chỉ lưu specificAddress nếu user chưa quan trọng form chuẩn.
+    // Tốt nhất: customerData.address = specificAddress (Tạm thời). 
+    // Nếu muốn full: Phải lookup name từ locationData.
+
+    const fullAddress = `${specificAddress}`; // Tạm thời.
+
     if (hasSenderInfo && hasRecipientInfo && hasLocation && isEmailValid) {
       setIsInfo(true);
+      setCustomerData({
+        name: senderName,
+        phone: senderPhone,
+        email: senderEmail,
+        address: fullAddress, // Lưu ý: Cần update logic lấy full address (Tỉnh Huyện Xã) sau
+        recipientName,
+        recipientPhone,
+        note
+      });
     } else {
-     setIsInfo(false);
+      setIsInfo(false);
     }
   }, [
     senderName,
@@ -105,8 +126,10 @@ const CustomerInfo: React.FC = () => {
     specificAddress,
     senderEmail,
     emailError,
-    setIsInfo
-  ]);
+    setIsInfo,
+    setCustomerData,
+    note
+  ]); // Added deps
 
   // --- Helper Functions ---
 

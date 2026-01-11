@@ -1,0 +1,33 @@
+# Large data files
+drug_data.csv
+DATABASE_SE347.pdf
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment files (contain secrets)
+.env
+*/.env
+
+# IDE
+.vscode/
+.idea/
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
