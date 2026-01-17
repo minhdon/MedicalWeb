@@ -10,11 +10,28 @@ import Inventory from "./pages/Inventory";
 import Batches from "./pages/Batches";
 import Customers from "./pages/Customers";
 import Branches from "./pages/Branches";
+import Transfers from "./pages/Transfers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const AppRoutes = () => (
+  <Routes>
+    <Route path="/" element={<Dashboard />} />
+    <Route path="/orders" element={<Orders />} />
+    <Route path="/products" element={<Products />} />
+    <Route path="/inventory" element={<Inventory />} />
+    <Route path="/batches" element={<Batches />} />
+    <Route path="/customers" element={<Customers />} />
+    <Route path="/branches" element={<Branches />} />
+    <Route path="/transfers" element={<Transfers />} />
+    <Route path="/reports" element={<Reports />} />
+    <Route path="/settings" element={<Settings />} />
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -22,21 +39,12 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/batches" element={<Batches />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/branches" element={<Branches />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
 
 export default App;
+
+

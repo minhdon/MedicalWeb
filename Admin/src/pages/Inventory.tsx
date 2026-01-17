@@ -30,10 +30,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Plus, ArrowDownToLine, ArrowUpFromLine, RefreshCw } from 'lucide-react';
+import { Search, Plus, ArrowDownToLine, ArrowUpFromLine, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { format } from 'date-fns';
+
+const ITEMS_PER_PAGE = 20;
 
 export default function Inventory() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -41,6 +43,11 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
 
   // Batch View State
   const [selectedProductBatches, setSelectedProductBatches] = useState<any[]>([]);
@@ -52,33 +59,39 @@ export default function Inventory() {
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
 
-  // Fetch Products for Inventory
-  const fetchInventory = async () => {
+  // Fetch Products for Inventory with pagination and search
+  const fetchInventory = async (page: number = 1, search: string = '') => {
     try {
       setLoading(true);
-      const res = await fetch('http://127.0.0.1:3000/api/product/getAll?limit=100');
+      let url = `http://127.0.0.1:3000/api/product/getAll?page=${page}&limit=${ITEMS_PER_PAGE}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
 
       if (data && data.data) {
         const mappedProducts: Medicine[] = data.data.map((p: any) => ({
-          id: p._id,
+          id: p._id || p.id,
           name: p.productName,
           description: '',
           category: p.category || 'Dược phẩm',
           price: p.price,
-          costPrice: 0, // Backend might need to expose cost price explicitly if stored
-          stock: p.quantity || 0, // Real stock from batches
+          costPrice: p.costPrice || p.price * 0.7, // Estimate if not available
+          stock: p.quantity || 0,
           unit: p.unit,
-          manufacturer: p.manufacturer || 'Đang cập nhật',
+          manufacturer: p.manufacturerId?.manufacturerName || p.manufacturer || 'Đang cập nhật',
           ingredients: p.ingredients,
           brand: p.brand,
           origin: p.origin,
-          expiryDate: p.expiryDate ? p.expiryDate.split('T')[0] : 'N/A', // Nearest expiry
-          requiresPrescription: false,
+          expiryDate: p.expiryDate || null,
+          requiresPrescription: p.category === 'Thuốc theo đơn',
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
         }));
         setMedicines(mappedProducts);
+        setTotalPages(data.pagination?.totalPages || data.totalPages || 1);
+        setTotalProducts(data.pagination?.totalDocs || data.totalProducts || 0);
       }
     } catch (error) {
       console.error(error);
@@ -89,12 +102,26 @@ export default function Inventory() {
   };
 
   useEffect(() => {
-    fetchInventory();
-  }, []);
+    fetchInventory(currentPage, searchTerm);
+  }, [currentPage]);
 
-  const filteredMedicines = medicines.filter((medicine) =>
-    medicine.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+      fetchInventory(1, searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // No client-side filter needed - search is server-side
+  const filteredMedicines = medicines;
 
   const handleViewBatches = async (product: Medicine) => {
     setViewingProduct(product);
@@ -401,6 +428,62 @@ export default function Inventory() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between mt-4 px-2">
+              <div className="text-sm text-muted-foreground">
+                Hiển thị {medicines.length} / {totalProducts} sản phẩm
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1 || loading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Trước
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                        disabled={loading}
+                        className="w-10"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages || loading}
+                >
+                  Sau
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Trang {currentPage} / {totalPages}
+              </div>
             </div>
           </div>
         </TabsContent>

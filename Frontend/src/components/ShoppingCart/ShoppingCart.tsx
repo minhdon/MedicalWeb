@@ -4,6 +4,7 @@ import { paymentPerProductContext } from "../useContext/PaymentPerProduct";
 import { IsInfoContext } from "../useContext/checkInfoContext";
 import { createOrderAPI } from "../CallApi/CallApiSaleInvoice";
 import { useNavigate, useSearchParams } from "react-router";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface CartItem {
   _id: string; // Updated to _id
@@ -67,6 +68,9 @@ const ShoppingCart: React.FC = () => {
   // Determine storage key
   const storageKey = isBuyNowMode ? "buyNowCart" : "shoppingCart";
 
+  // Get staff info for in-store sales
+  const { user, isStaff } = useAuth();
+
   // Dữ liệu giả lập - Initialize with empty array first, then load in Effect
   // OR initialize directly but logic is cleaner with Effect for mode switching
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -85,6 +89,7 @@ const ShoppingCart: React.FC = () => {
   const { isInfo, customerData } = useContext(IsInfoContext);
   const products = useContext(paymentPerProductContext);
   const [isOrdering, setIsOrdering] = useState(false);
+  const [validationError, setValidationError] = useState<string>(""); // NEW: For inline validation
 
   // FIX: Use _id AND unit to identify item
   const handleChangeQuantity = (id: string, unit: string, count: number) => {
@@ -134,20 +139,30 @@ const ShoppingCart: React.FC = () => {
 
   // ... (handleCheckout logic remains same)
   const handleCheckout = async () => {
-    // 1. Validate Info
-    if (!isInfo) {
-      alert("Vui lòng điền đầy đủ thông tin người nhận hàng (Tên, SĐT, Địa chỉ)!");
-      return;
-    }
-
     const selectedItems = cartItems.filter(item => item.status);
 
+    // Clear previous errors first
+    setValidationError("");
+
     if (selectedItems.length === 0) {
-      alert("Vui lòng chọn ít nhất một sản phẩm để thanh toán!");
+      setValidationError("Vui lòng chọn ít nhất một sản phẩm!");
       return;
     }
 
-    if (!window.confirm(`Xác nhận đặt hàng ${selectedItems.length} sản phẩm đã chọn?`)) return;
+    // Validate customer Info
+    if (!isInfo) {
+      setValidationError("Vui lòng điền đầy đủ thông tin khách hàng bên dưới!");
+      // Scroll to customer form
+      document.querySelector('[class*="CustomerInfo"], [class*="StaffCustomer"]')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    // Custom confirmation for staff vs customer
+    const confirmMsg = isStaff
+      ? `Xác nhận bán hàng trực tiếp ${selectedItems.length} sản phẩm tại ${user?.warehouse?.name || 'cửa hàng'}?`
+      : `Xác nhận đặt hàng ${selectedItems.length} sản phẩm đã chọn?`;
+
+    if (!window.confirm(confirmMsg)) return;
 
     setIsOrdering(true);
     try {
@@ -159,13 +174,26 @@ const ShoppingCart: React.FC = () => {
         productName: item.productName
       }));
 
-      const orderPayload = {
+      // Build order payload with staff info for in-store sales
+      const orderPayload: any = {
         customerInfo: customerData,
         cartItems: itemsPayload
       };
 
+      // If staff is logged in, add warehouse and staff info for in-store sales tracking
+      if (isStaff && user) {
+        orderPayload.warehouseId = user.warehouse?._id || user.warehouse?.id || null;
+        orderPayload.staffId = user.id || user._id;
+        orderPayload.isInStoreSale = true; // Flag to indicate in-store sale
+      }
+
       const result = await createOrderAPI(orderPayload);
-      alert(`Đặt hàng thành công! Mã đơn: ${result.invoiceId} \nTổng tiền: ${result.totalBill?.toLocaleString()}đ`);
+
+      const successMsg = isStaff
+        ? `Bán hàng thành công! Mã đơn: ${result.invoiceId}\nTổng tiền: ${result.totalBill?.toLocaleString()}đ\nChi nhánh: ${user?.warehouse?.name || 'N/A'}`
+        : `Đặt hàng thành công! Mã đơn: ${result.invoiceId}\nTổng tiền: ${result.totalBill?.toLocaleString()}đ`;
+
+      alert(successMsg);
 
       // Remove Paid Items
       const remainingItems = cartItems.filter(item => !item.status);
@@ -373,13 +401,39 @@ const ShoppingCart: React.FC = () => {
             </div>
           </div>
 
+          {/* Validation Error Message */}
+          {validationError && (
+            <div style={{
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffc107',
+              color: '#856404',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              marginBottom: '12px',
+              fontSize: '14px',
+              textAlign: 'center'
+            }}>
+              ⚠️ {validationError}
+            </div>
+          )}
+
           <button
             className={styles.btnCheckout}
-            disabled={isOrdering}
-            style={{ opacity: isOrdering ? 0.7 : 1, cursor: isOrdering ? 'wait' : 'pointer', backgroundColor: '#1d48ba' }}
+            disabled={isOrdering || cartItems.filter(i => i.status).length === 0}
+            style={{
+              opacity: isOrdering ? 0.7 : cartItems.filter(i => i.status).length === 0 ? 0.5 : 1,
+              cursor: isOrdering ? 'wait' : cartItems.filter(i => i.status).length === 0 ? 'not-allowed' : 'pointer',
+              backgroundColor: isInfo && cartItems.filter(i => i.status).length > 0 ? '#28a745' : '#1d48ba'
+            }}
             onClick={handleCheckout}
           >
-            {isOrdering ? 'Đang xử lý...' : 'Mua hàng'}
+            {isOrdering
+              ? 'Đang xử lý...'
+              : cartItems.filter(i => i.status).length === 0
+                ? 'Chọn sản phẩm'
+                : !isInfo
+                  ? 'Điền thông tin khách hàng'
+                  : isStaff ? '✓ Xác nhận bán hàng' : '✓ Đặt hàng ngay'}
           </button>
         </div>
       </div>

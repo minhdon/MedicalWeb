@@ -30,44 +30,57 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function Products() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-  // Fetch Products
-  const fetchProducts = async () => {
+  // Fetch Products with pagination and search
+  const fetchProducts = async (page: number = 1, search: string = '') => {
     try {
       setLoading(true);
-      const res = await fetch('http://127.0.0.1:3000/api/product/getAll?limit=100'); // Fetch limit 100 for admin
+      let url = `http://127.0.0.1:3000/api/product/getAll?page=${page}&limit=${ITEMS_PER_PAGE}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
 
       if (data && data.data) {
         const mappedProducts: Medicine[] = data.data.map((p: any) => ({
-          id: p._id,
+          id: p._id || p.id,
           name: p.productName,
           description: p.productDesc || '',
           category: p.category || 'Dược phẩm',
           price: p.price,
-          costPrice: 0, // Backend might not have this public
-          stock: p.variants?.[0]?.quantity || 100, // Mock stock or fetch batch
+          costPrice: 0,
+          stock: p.quantity || p.variants?.[0]?.quantity || 0,
           unit: p.unit,
-          manufacturer: p.manufacturer || 'Đang cập nhật',
+          manufacturer: p.manufacturerId?.manufacturerName || p.manufacturer || 'Đang cập nhật',
           ingredients: p.ingredients || '',
           usage: p.usage || '',
           preservation: p.preservation || '',
           sideEffects: p.sideEffects || '',
           precautions: p.precautions || '',
           brand: p.brand || '',
-          origin: p.origin || '', // Backend now returns explicit origin
+          origin: p.origin || '',
           requiresPrescription: p.category === 'Thuốc theo đơn',
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
           variants: p.variants || []
         }));
         setMedicines(mappedProducts);
+        setTotalPages(data.pagination?.totalPages || data.totalPages || 1);
+        setTotalProducts(data.pagination?.totalDocs || data.totalProducts || 0);
       }
     } catch (error) {
       console.error(error);
@@ -78,12 +91,25 @@ export default function Products() {
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    fetchProducts(currentPage, searchTerm);
+  }, [currentPage]);
 
-  // Re-declare state vars map to existing code
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  // Debounced search - triggers when searchTerm changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(1); // Reset to page 1 when searching
+      fetchProducts(1, searchTerm);
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Dialog and form state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
   const [formData, setFormData] = useState({
@@ -104,11 +130,10 @@ export default function Products() {
     requiresPrescription: false,
   });
 
-  const filteredMedicines = medicines.filter((medicine) => {
-    const matchesSearch = medicine.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || medicine.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  // Client-side category filter only (search is server-side)
+  const filteredMedicines = categoryFilter === 'all'
+    ? medicines
+    : medicines.filter((medicine) => medicine.category === categoryFilter);
 
   const resetForm = () => {
     setFormData({
@@ -498,6 +523,62 @@ export default function Products() {
               ))}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between mt-4 px-2">
+          <div className="text-sm text-muted-foreground">
+            Hiển thị {medicines.length} / {totalProducts} sản phẩm
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1 || loading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Trước
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageChange(pageNum)}
+                    disabled={loading}
+                    className="w-10"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages || loading}
+            >
+              Sau
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Trang {currentPage} / {totalPages}
+          </div>
         </div>
       </div>
     </DashboardLayout >

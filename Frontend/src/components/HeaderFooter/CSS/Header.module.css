@@ -3,17 +3,77 @@ header {
   top: 0;
   left: 0;
   width: 100%;
-  height: 100px;
-  padding: 20px 100px;
-  /* background: transparent; */
+  height: 80px;
+  padding: 10px 30px 10px 180px;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   z-index: 99;
   background: #ffffff;
   border-bottom: 2px solid #ccc;
   border-radius: 10px;
   transition: 0.5s;
+  box-sizing: border-box;
+}
+
+/* User actions container - right side of header */
+.userActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Shopping cart button in userActions */
+.userActions .btnShoppingCart {
+  width: 130px;
+  height: 50px;
+  background: transparent;
+  border: 2px solid #ccc;
+  outline: none;
+  border-radius: 6px;
+  font-size: 1.1em;
+  font-weight: bold;
+  transition: 0.5s;
+  color: #2b9474;
+  cursor: pointer;
+  position: relative;
+}
+
+.userActions .btnShoppingCart:hover {
+  background: #2b9474;
+  color: #fff;
+}
+
+.staffBadge {
+  font-size: 11px;
+  color: #1d48ba;
+  background-color: #e3f2fd;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.userName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logoutBtn {
+  padding: 6px 12px;
+  font-size: 11px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .header-hidden {
@@ -29,10 +89,12 @@ header {
   cursor: pointer;
   /* align-items: flex-start; */
 }
+
 .logo img {
   width: 100%;
   filter: brightness(0.5);
 }
+
 .navigation a {
   position: relative;
   font-size: 1.5rem;
@@ -41,6 +103,7 @@ header {
   font-weight: bold;
   margin-left: 40px;
 }
+
 .navigation a::after {
   content: "";
   position: absolute;
@@ -55,6 +118,7 @@ header {
   transform: scaleX(0);
   transition: transform 0.5s;
 }
+
 .navigation a:hover::after {
   transform-origin: left;
   transform: scaleX(1);
@@ -64,6 +128,7 @@ header {
   transform: rotateX(180deg);
   transition: 0.5s;
 }
+
 .list-product {
   position: absolute;
   left: 27vw;
@@ -79,19 +144,23 @@ header {
   align-items: center;
   transform: scaleX(0);
 }
+
 .list-product.active {
   transform: scaleX(1);
   transition: 0.5s;
 }
+
 .list-product a {
   margin: 0;
   padding: 10px 0 10px 0;
   font-size: 1.5rem;
   font-weight: normal;
 }
+
 .list-product a:hover {
   text-decoration: underline;
 }
+
 .list-product a:hover::after {
   transform: scaleX(0);
   text-decoration: underline;
@@ -106,6 +175,7 @@ header {
   font-size: 1.2rem;
   padding-left: 30px;
 }
+
 .navigation .find-product::placeholder {
   font-size: 1.2rem;
 }
@@ -152,10 +222,12 @@ header {
   cursor: pointer;
   position: relative;
 }
+
 .navigation .btnShoppingCart:hover {
   background: #2b9474;
   color: #fff;
 }
+
 .countProduct {
   color: #fff;
   position: absolute;
@@ -170,6 +242,7 @@ header {
   right: -10px;
   top: -10px;
 }
+
 .productsList {
   position: absolute;
   left: 30vw;
@@ -182,6 +255,7 @@ header {
   overflow-y: scroll;
   overflow-x: hidden;
 }
+
 .productItem {
   width: 100%;
   height: 100px;
@@ -192,6 +266,7 @@ header {
   border-bottom: 1px solid #ccc;
   cursor: pointer;
 }
+
 .productItem:hover {
   background: #dfdddd;
 }
@@ -202,18 +277,22 @@ header {
   overflow: hidden;
   display: inline-block;
 }
+
 .image img {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
+
 .description p {
   font-size: 1.5rem;
   margin-left: 20px;
 }
+
 .description .productName {
   margin-top: 20px;
 }
+
 .description .cost {
   font-weight: bold;
 }
@@ -223,7 +302,8 @@ header {
     height: auto;
     padding: 10px;
     flex-direction: column;
-    position: relative; /* Fixed header on mobile might take too much space */
+    position: relative;
+    /* Fixed header on mobile might take too much space */
   }
 
   .logo {
@@ -232,7 +312,7 @@ header {
     margin-bottom: 10px;
     justify-content: center;
   }
-  
+
   .navigation a {
     margin-left: 10px;
     font-size: 1rem;
@@ -243,14 +323,14 @@ header {
     margin-left: 0;
     margin-top: 10px;
   }
-  
+
   .navigation .btnLogin-popup,
   .navigation .btnShoppingCart {
     width: 100px;
     margin-left: 10px;
     font-size: 0.9em;
   }
-  
+
   .list-product {
     left: 5%;
     width: 90%;

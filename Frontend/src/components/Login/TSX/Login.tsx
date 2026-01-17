@@ -2,32 +2,39 @@
 import { useState } from "react";
 import styles from "../CSS/Login.module.css";
 import { authService } from "../../../services/authService";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export const Login = () => {
   const [hiddenPassword, setHiddenPassword] = useState(true);
   const [message, setMessage] = useState<string>("");
   const [isError, setIsError] = useState(false);
-  
+  const { login } = useAuth();
+
   const actionUnHiddenPassword = () => {
     setHiddenPassword(false);
   };
   const actionHiddenPassword = () => {
     setHiddenPassword(true);
   };
-  
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const email = (form.elements.namedItem('emailLog') as HTMLInputElement).value;
     const passWord = (form.elements.namedItem('passwordLog') as HTMLInputElement).value;
-    
+
     try {
       const response = await authService.login({ email, passWord });
       setMessage(response.data.message);
       setIsError(false);
-      console.log('Token:', response.data.token);
-      localStorage.setItem('token', response.data.token);
-      
+
+      // Store full user data including role and warehouse via AuthContext
+      const userData = response.data.user;
+      const token = response.data.token;
+      login(userData, token);
+
+      console.log('Logged in as:', userData.role, userData.warehouse?.name || 'N/A');
+
       // Redirect sau 1 giây
       setTimeout(() => {
         window.location.href = '/';
@@ -37,7 +44,7 @@ export const Login = () => {
       setIsError(true);
     }
   };
-  
+
   const unHidden = hiddenPassword ? "" : styles.unhidden;
   const Hidden = hiddenPassword ? "" : styles.hidden;
   const typePassword = hiddenPassword ? "password" : "text";
@@ -61,9 +68,9 @@ export const Login = () => {
                 Login to your account <a href="/">Medicare</a>
               </p>
               {message && (
-                <div style={{ 
-                  padding: '10px', 
-                  marginBottom: '10px', 
+                <div style={{
+                  padding: '10px',
+                  marginBottom: '10px',
                   borderRadius: '5px',
                   backgroundColor: isError ? '#fee' : '#efe',
                   color: isError ? '#c00' : '#0a0',

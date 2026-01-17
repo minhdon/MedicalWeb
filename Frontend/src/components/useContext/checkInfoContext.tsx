@@ -8,6 +8,8 @@ export type CustomerDataType = {
   recipientName?: string;
   recipientPhone?: string;
   note?: string;
+  customerId?: string | null; // For existing customer lookup
+  isNewCustomer?: boolean; // Flag for new customer creation
 };
 
 export type IsInfoContextType = {

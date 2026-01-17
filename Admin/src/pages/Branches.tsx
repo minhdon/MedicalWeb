@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { branches as initialBranches } from '@/data/mockData';
 import { Branch } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,13 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Building2, Phone, User, MapPin } from 'lucide-react';
+import { Plus, Pencil, Building2, Phone, User, MapPin, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const API_BASE = 'http://127.0.0.1:3000/api/warehouse';
+
 export default function Branches() {
-  const [branches, setBranches] = useState<Branch[]>(initialBranches);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -28,6 +30,24 @@ export default function Branches() {
     manager: '',
     isActive: true,
   });
+
+  // Fetch branches from API
+  const fetchBranches = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/getAll`);
+      const data = await res.json();
+      if (data && data.data) {
+        setBranches(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error);
+      toast.error('Không thể tải danh sách chi nhánh');
+    }
+  };
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
 
   const resetForm = () => {
     setFormData({ name: '', address: '', phone: '', manager: '', isActive: true });
@@ -46,36 +66,92 @@ export default function Branches() {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.address) {
       toast.error('Vui lòng điền tên và địa chỉ chi nhánh');
       return;
     }
 
-    if (editingBranch) {
-      setBranches((prev) =>
-        prev.map((b) =>
-          b.id === editingBranch.id ? { ...b, ...formData } : b
-        )
-      );
-      toast.success('Đã cập nhật thông tin chi nhánh');
-    } else {
-      const newBranch: Branch = {
-        id: Date.now().toString(),
-        ...formData,
-      };
-      setBranches((prev) => [...prev, newBranch]);
-      toast.success('Đã thêm chi nhánh mới');
-    }
+    try {
+      if (editingBranch) {
+        // Update existing branch
+        const res = await fetch(`${API_BASE}/update/${editingBranch.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
 
-    setIsDialogOpen(false);
-    resetForm();
+        const data = await res.json();
+        if (res.ok) {
+          toast.success('Đã cập nhật thông tin chi nhánh');
+          fetchBranches();
+        } else {
+          toast.error(data.message || 'Lỗi khi cập nhật');
+        }
+      } else {
+        // Create new branch
+        const res = await fetch(`${API_BASE}/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          toast.success('Đã thêm chi nhánh mới');
+          fetchBranches();
+        } else {
+          toast.error(data.message || 'Lỗi khi thêm chi nhánh');
+          return;
+        }
+      }
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error(error);
+      toast.error('Có lỗi kết nối đến server');
+    }
   };
 
-  const toggleBranchStatus = (id: string) => {
-    setBranches((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, isActive: !b.isActive } : b))
-    );
+  const toggleBranchStatus = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/toggle/${id}`, {
+        method: 'PATCH'
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(data.message);
+        fetchBranches();
+      }
+    } catch (error) {
+      toast.error('Lỗi khi thay đổi trạng thái');
+    }
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/delete/${deleteId}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        toast.success('Đã xóa chi nhánh');
+        fetchBranches();
+      } else {
+        toast.error('Không thể xóa chi nhánh');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối khi xóa');
+    } finally {
+      setDeleteId(null);
+    }
   };
 
   return (
@@ -146,56 +222,82 @@ export default function Branches() {
         </Dialog>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {branches.map((branch) => (
-          <div
-            key={branch.id}
-            className={`rounded-xl bg-card p-6 card-shadow border-l-4 ${
-              branch.isActive ? 'border-l-success' : 'border-l-muted'
-            }`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Building2 className="h-6 w-6 text-primary" />
+      {branches.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground">
+          Chưa có chi nhánh nào. Nhấn "Thêm chi nhánh" để tạo mới.
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2">
+          {branches.map((branch) => (
+            <div
+              key={branch.id}
+              className={`rounded-xl bg-card p-6 card-shadow border-l-4 ${branch.isActive ? 'border-l-success' : 'border-l-muted'
+                }`}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Building2 className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg text-card-foreground">{branch.name}</h3>
+                    <Badge variant={branch.isActive ? 'success' : 'secondary'}>
+                      {branch.isActive ? 'Đang hoạt động' : 'Tạm ngưng'}
+                    </Badge>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-lg text-card-foreground">{branch.name}</h3>
-                  <Badge variant={branch.isActive ? 'success' : 'secondary'}>
-                    {branch.isActive ? 'Đang hoạt động' : 'Tạm ngưng'}
-                  </Badge>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(branch)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(branch.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => handleEdit(branch)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
 
-            <div className="space-y-3 text-sm">
-              <div className="flex items-start gap-3">
-                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <span className="text-muted-foreground">{branch.address}</span>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <span className="text-muted-foreground">{branch.address || 'Chưa có địa chỉ'}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">{branch.phone || 'Chưa có SĐT'}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Quản lý: {branch.manager || 'Chưa có'}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{branch.phone}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Quản lý: {branch.manager}</span>
-              </div>
-            </div>
 
-            <div className="mt-4 pt-4 border-t flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Trạng thái hoạt động</span>
-              <Switch
-                checked={branch.isActive}
-                onCheckedChange={() => toggleBranchStatus(branch.id)}
-              />
+              <div className="mt-4 pt-4 border-t flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Trạng thái hoạt động</span>
+                <Switch
+                  checked={branch.isActive}
+                  onCheckedChange={() => toggleBranchStatus(branch.id)}
+                />
+              </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Bạn có chắc chắn muốn xóa chi nhánh này không? Hành động này không thể hoàn tác.</p>
           </div>
-        ))}
-      </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteId(null)}>Hủy</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Xóa</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

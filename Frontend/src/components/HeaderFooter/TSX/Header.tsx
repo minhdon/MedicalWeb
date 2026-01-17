@@ -3,6 +3,7 @@ import styles from "../CSS/Header.module.css";
 
 import { useNavigate } from "react-router";
 import { createSearchParams } from "react-router";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface Product {
   id: number;
@@ -20,6 +21,9 @@ export const Header = () => {
   const [isProductList, setIsProductList] = useState(false);
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const lastScrollY = useRef(0);
+
+  // Auth context for user info
+  const { user, isLoggedIn, isStaff, logout } = useAuth();
 
   const productList = isProductList ? styles.active : "";
   const headerHidden = isHeaderHidden ? styles["header-hidden"] : "";
@@ -105,6 +109,11 @@ export const Header = () => {
     });
   };
 
+  const handleLogout = () => {
+    logout();
+    window.location.href = '/';
+  };
+
   return (
     <>
       <header id="header" className={headerHidden}>
@@ -175,18 +184,37 @@ export const Header = () => {
                 ))}
             </section>
           )}
-          <button className={styles["btnLogin-popup"]} onClick={loginPageLink}>
-            Login
-          </button>{" "}
+        </nav>
+
+        {/* Right side - User info and Cart */}
+        <div className={styles.userActions}>
+          {isLoggedIn ? (
+            <>
+              {isStaff && user?.warehouse && (
+                <span className={styles.staffBadge}>
+                  {user.warehouse.name}
+                </span>
+              )}
+              <span className={styles.userName}>
+                {user?.fullName || 'User'}
+              </span>
+              <button className={styles.logoutBtn} onClick={handleLogout}>
+                Đăng xuất
+              </button>
+            </>
+          ) : (
+            <button className={styles["btnLogin-popup"]} onClick={loginPageLink}>
+              Login
+            </button>
+          )}
           <button
             className={styles["btnShoppingCart"]}
             onClick={toShoppingCart}
           >
-            {" "}
-            <i className="fa-solid fa-cart-shopping"></i> Giỏ hàng{" "}
+            <i className="fa-solid fa-cart-shopping"></i> Giỏ hàng
             <div className={styles.countProduct}>{ProductList.length}</div>
           </button>
-        </nav>
+        </div>
       </header>
     </>
   );

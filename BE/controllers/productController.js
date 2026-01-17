@@ -74,6 +74,7 @@ export const getAllProducts = async (req, res) => {
 
             return {
                 ...p.toObject(),
+                id: p._id, // Frontend expects 'id' for navigation
                 cost: p.price, // Frontend expects 'cost' field
                 category: p.categoryId?.categoryName || '', // Frontend uses this for prescription logic
                 quantity: totalStock, // Override with real stock
@@ -154,10 +155,13 @@ export const getAllBatches = async (req, res) => {
 // Bulk create batches (Import goods)
 export const createBulkBatches = async (req, res) => {
     try {
-        const { batches } = req.body; // Array of { productId, quantity, manufactureDate, expiryDate }
+        const { batches, warehouseId } = req.body; // Array of { productId, quantity, manufactureDate, expiryDate }
 
         if (!batches || !Array.isArray(batches) || batches.length === 0) {
             return res.status(400).json({ message: "Danh sách lô hàng trống" });
+        }
+        if (!warehouseId) {
+            return res.status(400).json({ message: "Kho nhập hàng là bắt buộc" });
         }
 
         const createdBatches = [];
@@ -166,12 +170,15 @@ export const createBulkBatches = async (req, res) => {
         for (const batch of batches) {
             const { productId, quantity, manufactureDate, expiryDate } = batch;
 
+            if (!productId || !quantity || quantity <= 0) continue; // Skip invalid
+
             const product = await Product.findById(productId);
             if (!product) continue; // Skip invalid products
 
             const newBatch = new ProductBatch({
                 productId,
                 purchaseInvoiceId,
+                warehouseId, // CRITICAL FIX
                 manufactureDate,
                 expiryDate,
                 quantity,
@@ -185,17 +192,23 @@ export const createBulkBatches = async (req, res) => {
 
         res.status(201).json(createdBatches);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(400).json({ message: error.message });
     }
 };
 
 export const createBatch = async (req, res) => {
     try {
-        const { productId, quantity, manufactureDate, expiryDate } = req.body;
+        const { productId, quantity, manufactureDate, expiryDate, warehouseId } = req.body;
 
         // Validation
         if (!productId || !quantity || !manufactureDate || !expiryDate) {
             return res.status(400).json({ message: "Vui lòng điền đầy đủ thông tin" });
+        }
+        if (!warehouseId) {
+            return res.status(400).json({ message: "Kho nhập hàng là bắt buộc" });
+        }
+        if (quantity <= 0) {
+            return res.status(400).json({ message: "Số lượng phải lớn hơn 0" });
         }
 
         const product = await Product.findById(productId);
@@ -205,6 +218,7 @@ export const createBatch = async (req, res) => {
         const newBatch = new ProductBatch({
             productId,
             purchaseInvoiceId: new mongoose.Types.ObjectId(), // Mock ID
+            warehouseId, // CRITICAL FIX
             manufactureDate,
             expiryDate,
             quantity,
@@ -216,7 +230,7 @@ export const createBatch = async (req, res) => {
         await newBatch.save();
         res.status(201).json(newBatch);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(400).json({ message: error.message });
     }
 };
 

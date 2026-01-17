@@ -70,6 +70,8 @@ interface ProductBatch {
 interface ProductSimple {
     _id: string;
     productName: string;
+    unit?: string;
+    variants?: { unit: string; price: number }[];
 }
 
 interface InvoiceGroup {
@@ -86,7 +88,7 @@ const ProductSelect = ({
     displayName
 }: {
     value: string,
-    onChange: (val: string, name: string) => void,
+    onChange: (val: string, name: string, variants?: { unit: string; price: number }[]) => void,
     displayName?: string
 }) => {
     const [open, setOpen] = useState(false)
@@ -108,7 +110,12 @@ const ProductSelect = ({
             const res = await fetch(`http://127.0.0.1:3000/api/product/getAll${query}`)
             const data = await res.json()
             if (data && data.data) {
-                setOptions(data.data.map((p: any) => ({ _id: p._id, productName: p.productName })))
+                setOptions(data.data.map((p: any) => ({
+                    _id: p._id || p.id,
+                    productName: p.productName,
+                    unit: p.unit,
+                    variants: p.variants || []
+                })))
             }
         } catch (error) {
             console.error(error)
@@ -126,9 +133,9 @@ const ProductSelect = ({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
-                    className="w-full justify-between font-normal"
+                    className="w-full justify-between font-normal h-10"
                 >
-                    {selectedName || "Chọn sản phẩm..."}
+                    <span className="truncate flex-1 text-left">{selectedName || "Chọn sản phẩm..."}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
@@ -154,7 +161,7 @@ const ProductSelect = ({
                                     key={product._id}
                                     value={product.productName}
                                     onSelect={() => {
-                                        onChange(product._id, product.productName);
+                                        onChange(product._id, product.productName, product.variants);
                                         setOpen(false);
                                     }}
                                 >
@@ -184,6 +191,7 @@ export default function Batches() {
     // Pagination State
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalBatches, setTotalBatches] = useState(0);
 
     // Dialog State
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -198,6 +206,8 @@ export default function Batches() {
         productId: '',
         productName: '',
         quantity: '',
+        unit: '', // Will be set from product variants
+        variants: [], // Store product-specific variants
         manufactureDate: '',
         expiryDate: ''
     }]);
@@ -214,6 +224,8 @@ export default function Batches() {
             productId: '',
             productName: '',
             quantity: '',
+            unit: '',
+            variants: [],
             manufactureDate: '',
             expiryDate: ''
         }]);
@@ -252,11 +264,12 @@ export default function Batches() {
     const fetchBatches = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`http://127.0.0.1:3000/api/product/batches/getAll?page=${page}&limit=100`);
+            const res = await fetch(`http://127.0.0.1:3000/api/product/batches/getAll?page=${page}&limit=20`);
             const data = await res.json();
             if (data.data) {
                 setBatches(data.data);
-                setTotalPages(data.totalPages);
+                setTotalPages(data.totalPages || 1);
+                setTotalBatches(data.total || data.data.length);
             } else {
                 setBatches(data);
             }
@@ -623,35 +636,65 @@ export default function Batches() {
 
                 {/* Import Dialog */}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>{editingBatch ? 'Sửa lô hàng' : 'Nhập hàng (Nhiều sản phẩm)'}</DialogTitle>
                         </DialogHeader>
 
                         <div className="py-4">
                             {importItems.map((item, index) => (
-                                <div key={index} className="grid grid-cols-12 gap-4 items-end mb-4 border-b pb-4 last:border-0 last:pb-0">
-                                    <div className="col-span-4 space-y-2">
-                                        <Label>Sản phẩm {importItems.length > 1 ? `#${index + 1}` : ''}</Label>
+                                <div key={index} className="grid grid-cols-12 gap-4 items-end mb-6 border-b pb-6 last:border-0 last:pb-0">
+                                    <div className="col-span-5 space-y-2">
+                                        <Label className="text-sm font-medium">Sản phẩm {importItems.length > 1 ? `#${index + 1}` : ''}</Label>
                                         <ProductSelect
                                             value={item.productId}
                                             displayName={item.productName}
-                                            onChange={(val, name) => {
-                                                updateImportItem(index, { productId: val, productName: name });
+                                            onChange={(val, name, variants) => {
+                                                const defaultUnit = variants && variants.length > 0 ? variants[0].unit : '';
+                                                updateImportItem(index, {
+                                                    productId: val,
+                                                    productName: name,
+                                                    variants: variants || [],
+                                                    unit: defaultUnit
+                                                });
                                             }}
                                         />
                                     </div>
                                     <div className="col-span-2 space-y-2">
-                                        <Label>Ngày SX</Label>
-                                        <Input type="date" value={item.manufactureDate} onChange={(e) => updateImportItem(index, { manufactureDate: e.target.value })} />
+                                        <Label className="text-sm font-medium">Ngày SX</Label>
+                                        <Input type="date" className="h-10" value={item.manufactureDate} onChange={(e) => updateImportItem(index, { manufactureDate: e.target.value })} />
                                     </div>
                                     <div className="col-span-2 space-y-2">
-                                        <Label>Hạn SD</Label>
-                                        <Input type="date" value={item.expiryDate} onChange={(e) => updateImportItem(index, { expiryDate: e.target.value })} />
+                                        <Label className="text-sm font-medium">Hạn SD</Label>
+                                        <Input type="date" className="h-10" value={item.expiryDate} onChange={(e) => updateImportItem(index, { expiryDate: e.target.value })} />
                                     </div>
-                                    <div className="col-span-2 space-y-2">
-                                        <Label>Số lượng</Label>
-                                        <Input type="number" placeholder="SL" value={item.quantity} onChange={(e) => updateImportItem(index, { quantity: e.target.value })} />
+                                    <div className="col-span-3 space-y-2">
+                                        <Label className="text-sm font-medium">Số lượng & Đơn vị</Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="number"
+                                                placeholder="Số lượng"
+                                                value={item.quantity}
+                                                onChange={(e) => updateImportItem(index, { quantity: e.target.value })}
+                                                className="w-24 h-10"
+                                            />
+                                            <Select
+                                                value={item.unit || ''}
+                                                onValueChange={(val) => updateImportItem(index, { unit: val })}
+                                                disabled={!item.variants || item.variants.length === 0}
+                                            >
+                                                <SelectTrigger className="flex-1 h-10">
+                                                    <SelectValue placeholder="Chọn đơn vị" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {(item.variants || []).map((v: { unit: string; price: number }) => (
+                                                        <SelectItem key={v.unit} value={v.unit}>
+                                                            {v.unit} - {v.price.toLocaleString('vi-VN')}đ
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
 
                                     {!editingBatch && importItems.length > 1 && (
@@ -683,26 +726,59 @@ export default function Batches() {
                     </DialogContent>
                 </Dialog>
 
-                <div className="flex items-center justify-end space-x-2 py-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                    >
-                        Trước
-                    </Button>
-                    <div className="text-sm font-medium">
+                <div className="flex items-center justify-between py-4">
+                    <div className="text-sm text-muted-foreground">
+                        Hiển thị {batches.length} / {totalBatches} lô hàng
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1 || loading}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Trước
+                        </Button>
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let pageNum;
+                                if (totalPages <= 5) {
+                                    pageNum = i + 1;
+                                } else if (page <= 3) {
+                                    pageNum = i + 1;
+                                } else if (page >= totalPages - 2) {
+                                    pageNum = totalPages - 4 + i;
+                                } else {
+                                    pageNum = page - 2 + i;
+                                }
+                                return (
+                                    <Button
+                                        key={pageNum}
+                                        variant={page === pageNum ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setPage(pageNum)}
+                                        disabled={loading}
+                                        className="w-10"
+                                    >
+                                        {pageNum}
+                                    </Button>
+                                );
+                            })}
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages || loading}
+                        >
+                            Sau
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
                         Trang {page} / {totalPages}
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages}
-                    >
-                        Sau
-                    </Button>
                 </div>
             </div>
         </DashboardLayout>

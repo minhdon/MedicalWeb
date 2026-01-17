@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { orders as initialOrders, branches } from '@/data/mockData';
-import { Order } from '@/types';
+import { Order, Branch } from '@/types';
+
+const API_BASE = 'http://127.0.0.1:3000/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Eye, Truck } from 'lucide-react';
+import { Search, Eye, Truck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const statusConfig = {
@@ -79,6 +80,23 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [orderToAssign, setOrderToAssign] = useState<Order | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+
+  // Fetch branches from database
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/getAll`);
+        const data = await res.json();
+        if (data && data.data) {
+          setBranches(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch branches:', error);
+      }
+    };
+    fetchBranches();
+  }, []);
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
@@ -88,24 +106,84 @@ export default function Orders() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleAssignBranch = (order: Order, branchName: string) => {
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === order.id
-          ? { ...o, deliveryBranch: branchName, status: 'confirmed' as const }
-          : o
-      )
-    );
-    toast.success(`Đã phân bổ đơn ${order.id} cho ${branchName}`);
+  const handleAssignBranch = async (order: Order, branchId: string, branchName: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/sale-invoice/update/${order.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ warehouseId: branchId, statusName: 'Confirmed' })
+      });
+
+      if (res.ok) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === order.id
+              ? { ...o, deliveryBranch: branchName, status: 'confirmed' as const }
+              : o
+          )
+        );
+        toast.success(`Đã phân bổ đơn hàng cho ${branchName}`);
+      } else {
+        const data = await res.json();
+        toast.error(data.message || 'Lỗi phân bổ đơn hàng');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối khi phân bổ đơn hàng');
+    }
     setShowAssignDialog(false);
     setOrderToAssign(null);
   };
 
-  const handleUpdateStatus = (orderId: string, newStatus: Order['status']) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-    );
-    toast.success('Đã cập nhật trạng thái đơn hàng');
+  const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
+
+  const handleUpdateStatus = async (orderId: string, newStatusName: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/sale-invoice/update/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statusName: newStatusName })
+      });
+
+      if (res.ok) {
+        // Map backend status to frontend status key
+        const statusMap: Record<string, Order['status']> = {
+          'Pending': 'pending',
+          'Confirmed': 'confirmed',
+          'Processing': 'processing',
+          'Completed': 'delivered',
+          'Cancelled': 'cancelled'
+        };
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: statusMap[newStatusName] || 'pending' } : o))
+        );
+        toast.success('Đã cập nhật trạng thái đơn hàng');
+      } else {
+        toast.error('Lỗi cập nhật trạng thái');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối');
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!deleteOrderId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/sale-invoice/delete/${deleteOrderId}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setOrders((prev) => prev.filter((o) => o.id !== deleteOrderId));
+        toast.success('Đã xóa đơn hàng');
+      } else {
+        toast.error('Lỗi xóa đơn hàng');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối khi xóa');
+    } finally {
+      setDeleteOrderId(null);
+    }
   };
 
   return (
@@ -183,6 +261,7 @@ export default function Orders() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setSelectedOrder(order)}
+                          title="Xem chi tiết"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -194,10 +273,34 @@ export default function Orders() {
                               setOrderToAssign(order);
                               setShowAssignDialog(true);
                             }}
+                            title="Phân bổ chi nhánh"
                           >
                             <Truck className="h-4 w-4" />
                           </Button>
                         )}
+                        <Select
+                          value=""
+                          onValueChange={(value) => handleUpdateStatus(order.id, value)}
+                        >
+                          <SelectTrigger className="w-[130px] h-8">
+                            <SelectValue placeholder="Đổi trạng thái" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pending">Chờ xử lý</SelectItem>
+                            <SelectItem value="Confirmed">Đã xác nhận</SelectItem>
+                            <SelectItem value="Processing">Đang xử lý</SelectItem>
+                            <SelectItem value="Completed">Đã giao</SelectItem>
+                            <SelectItem value="Cancelled">Đã hủy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteOrderId(order.id)}
+                          title="Xóa đơn hàng"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -300,7 +403,7 @@ export default function Orders() {
                       key={branch.id}
                       variant="outline"
                       className="w-full justify-start"
-                      onClick={() => handleAssignBranch(orderToAssign, branch.name)}
+                      onClick={() => handleAssignBranch(orderToAssign, branch.id, branch.name)}
                     >
                       <div className="text-left">
                         <p className="font-medium">{branch.name}</p>
@@ -311,6 +414,25 @@ export default function Orders() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteOrderId} onOpenChange={(open) => !open && setDeleteOrderId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa đơn hàng</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Bạn có chắc chắn muốn xóa đơn hàng này không?</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Hành động này sẽ xóa toàn bộ thông tin đơn hàng và không thể hoàn tác.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteOrderId(null)}>Hủy</Button>
+            <Button variant="destructive" onClick={handleDeleteOrder}>Xóa</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

@@ -33,10 +33,18 @@ app.get('/', (req, res) => {
 });
 
 import saleInvoiceRoutes from './routes/saleInvoice.js'
+import customerRoutes from './routes/customer.js'
 // Mount routes
 app.use('/api/auth', authRoutes)
 app.use('/api/product', productRoutes) // Mount product routes
 app.use('/api/sale-invoice', saleInvoiceRoutes)
+app.use('/api/customer', customerRoutes)
+
+import warehouseRoutes from './routes/warehouse.js'
+app.use('/api/warehouse', warehouseRoutes)
+
+import transferRoutes from './routes/transfer.js'
+app.use('/api/transfer', transferRoutes)
 
 app.use(errorHandler)
 // Start server

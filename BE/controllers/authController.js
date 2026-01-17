@@ -2,6 +2,7 @@ import bcrypt, { hash } from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/auth/User.js';
 import { Role } from '../models/auth/Role.js';
+import { Warehouse } from '../models/warehouse/Warehouse.js';
 import dotenv from 'dotenv';
 import { loginSchema, resetPasswordRequestSchema, resetPasswordSchema, signUpSchema, updatePasswordSchema } from '../validators/auth/authValidator.js';
 import { OTP } from '../models/auth/OTP.js';
@@ -15,8 +16,8 @@ export const registerUser = async (req, res, next) => {
     try {
         const { value, error } = signUpSchema.validate(req.body);
         if (error) {
-            return res.status(400).json({ 
-                message: error.details[0].message 
+            return res.status(400).json({
+                message: error.details[0].message
             });
         }
 
@@ -46,10 +47,10 @@ export const registerUser = async (req, res, next) => {
                 userName: newUser.userName
             }
         });
-    } catch(error) {
+    } catch (error) {
         console.error("Lỗi đăng ký tài khoản:", error);
         return next(error);
-    }        
+    }
 }
 
 export const loginUser = async (req, res, next) => {
@@ -62,25 +63,40 @@ export const loginUser = async (req, res, next) => {
             });
         }
 
-        const user = await User.findOne({ email});
-        
+        // Populate role and warehouse info
+        const user = await User.findOne({ email })
+            .populate('roleId', 'roleName')
+            .populate('warehouseId', 'warehouseName address');
+
         if (!user || !(await bcrypt.compare(passWord, user.passWord))) {
             return res.status(400).json({
                 message: 'Tên đăng nhập hoặc mật khẩu không chính xác!'
             });
         }
-        
+
         const token = jwt.sign(
             { id: user._id },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '24h' } // Extended to 24 hours
         );
 
         return res.status(200).json({
             message: 'Đăng nhập thành công!',
-            token
+            token,
+            user: {
+                id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                phoneNum: user.phoneNum,
+                role: user.roleId?.roleName || 'Customer',
+                warehouse: user.warehouseId ? {
+                    id: user.warehouseId._id,
+                    name: user.warehouseId.warehouseName,
+                    address: user.warehouseId.address
+                } : null
+            }
         });
-    } catch(error) {
+    } catch (error) {
         console.error("Lỗi đăng nhập:", error);
         return next(error);
     }
@@ -109,7 +125,7 @@ export const resetPasswordRequest = async (req, res, next) => {
         return res.status(200).json({
             message: 'Mã OTP đã được gửi đến email của bạn!. Vui lòng kiểm tra hộp thư đến.'
         });
-    } catch(error) {
+    } catch (error) {
         console.error("Lỗi yêu cầu đặt lại mật khẩu:", error);
         return next(error);
     }
@@ -130,7 +146,7 @@ export const resetPassword = async (req, res, next) => {
                 message: 'Mã OTP không hợp lệ hoặc đã hết hạn!'
             });
         }
-        const user = await User.findOne({ email});
+        const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({
                 message: 'Người dùng không tồn tại!'
@@ -146,7 +162,7 @@ export const resetPassword = async (req, res, next) => {
         return res.status(200).json({
             messsage: 'Đặt lại mật khẩu thành công!'
         });
-    } catch(error) {
+    } catch (error) {
         console.error("Lỗi đặt lại mật khẩu:", error);
         return next(error);
     }
@@ -187,7 +203,7 @@ export const updatePassword = async (req, res, next) => {
         return res.status(200).json({
             message: 'Cập nhật mật khẩu thành công!'
         })
-    } catch(error) {
+    } catch (error) {
         console.error("Lỗi cập nhật mật khẩu:", error);
         return next(error);
     }

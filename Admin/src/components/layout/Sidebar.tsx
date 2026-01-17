@@ -9,6 +9,7 @@ import {
   FileText,
   Settings,
   Pill,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Lô hàng', href: '/batches', icon: Pill },
   { name: 'Khách hàng', href: '/customers', icon: Users },
   { name: 'Chi nhánh', href: '/branches', icon: Building2 },
+  { name: 'Chuyển kho', href: '/transfers', icon: ArrowLeftRight },
   { name: 'Báo cáo', href: '/reports', icon: FileText },
   { name: 'Cài đặt', href: '/settings', icon: Settings },
 ];
@@ -66,11 +68,17 @@ export function Sidebar() {
             <span className="text-sm font-medium text-sidebar-accent-foreground">A</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-accent-foreground truncate">Admin</p>
-            <p className="text-xs text-sidebar-foreground truncate">admin@pharmacare.vn</p>
+            <p className="text-sm font-medium text-sidebar-accent-foreground truncate">
+              Admin
+            </p>
+            <p className="text-xs text-sidebar-foreground truncate">
+              Quản trị viên
+            </p>
           </div>
         </div>
       </div>
     </aside>
   );
 }
+
+

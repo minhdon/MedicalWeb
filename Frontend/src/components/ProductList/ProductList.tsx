@@ -3,6 +3,7 @@ import { useNavigate, createSearchParams, useSearchParams } from "react-router";
 import { useProductFetcher, fetchProductsByPage, type ApiData } from "../CallApi/CallApiProduct";
 import { SortContext } from "../useContext/priceSortContext";
 import { IndexContext } from "../useContext/IndexProductContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 import styles from "./ProductList.module.css";
 
@@ -14,6 +15,9 @@ interface CartItem extends ApiData {
 }
 
 const DataFetcher: React.FC = () => {
+  // Get authentication state for role-based visibility
+  const { isStaff } = useAuth();
+
   // Thay thế useProductFetcher bằng Logic Server-Pagination & Prefetching
   const [productsMap, setProductsMap] = useState<Record<number, ApiData[]>>({}); // Cache
   const [totalPages, setTotalPages] = useState(1);
@@ -167,8 +171,8 @@ const DataFetcher: React.FC = () => {
               {item.productName} <span>hỗ trợ </span> {item.productDesc}
             </div>
 
-            {/* Logic hiển thị giá: Ẩn nếu là thuốc theo đơn */}
-            {item.category === "Thuốc theo đơn" ? (
+            {/* Logic hiển thị giá: Ẩn nếu là thuốc theo đơn VÀ không phải staff */}
+            {item.category === "Thuốc theo đơn" && !isStaff ? (
               <p className={styles.price} style={{ color: '#d32f2f', fontSize: '14px' }}>
                 Thuốc kê đơn
               </p>
@@ -178,8 +182,8 @@ const DataFetcher: React.FC = () => {
               </p>
             )}
 
-            {/* Logic nút bấm */}
-            {item.category === "Thuốc theo đơn" ? (
+            {/* Logic nút bấm: Thuốc kê đơn + Không phải staff => Tư vấn ngay, còn lại => Mua */}
+            {item.category === "Thuốc theo đơn" && !isStaff ? (
               <button
                 className={styles.button}
                 style={{ backgroundColor: "#ff9800", opacity: 0.9, width: '100%' }}

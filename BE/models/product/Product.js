@@ -27,4 +27,17 @@ const productSchema = new mongoose.Schema({
     status: { type: Boolean, default: true }
 }, { timestamps: true });
 
+// Cascade Delete Batches when Product is deleted
+productSchema.pre('findOneAndDelete', async function (next) {
+    try {
+        const doc = await this.model.findOne(this.getQuery());
+        if (doc) {
+            await mongoose.model('ProductBatch').deleteMany({ productId: doc._id });
+        }
+        next();
+    } catch (e) {
+        next(e);
+    }
+});
+
 export const Product = mongoose.model('Product', productSchema)
