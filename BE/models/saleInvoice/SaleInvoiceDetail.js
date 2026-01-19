@@ -9,32 +9,21 @@ const saleInvoiceDetailSchema = new mongoose.Schema({
     totalPrice: { type: Number, required: true, min: 0 }
 }, { timestamps: true });
 
-// Safety Net: Prevent selling expired items AND Check Warehouse Mismatch
+// Safety Net: Prevent selling expired items
 saleInvoiceDetailSchema.pre('save', async function (next) {
     if (this.isNew || this.isModified('batchId')) {
         try {
             const ProductBatch = mongoose.model('ProductBatch');
-            const SaleInvoice = mongoose.model('SaleInvoice');
 
-            const batch = await ProductBatch.findById(this.batchId);
-            const order = await SaleInvoice.findById(this.saleInvoiceId);
+            // Get session from document if available (for transaction support)
+            const session = this.$session();
 
-            if (!order) {
-                return next(new Error('Đơn hàng không tồn tại!')); // Prevent Orphan Detail
-            }
+            const batch = await ProductBatch.findById(this.batchId).session(session);
 
             if (batch) {
                 // 1. Expiry Check
                 if (batch.expiryDate < new Date()) {
                     return next(new Error('Không thể bán lô hàng đã hết hạn sử dụng!'));
-                }
-
-                // 2. Warehouse Mismatch Check
-                // Note: Only check if order has warehouseId (ie. not a draft or special case)
-                if (order && order.warehouseId && batch.warehouseId) {
-                    if (!order.warehouseId.equals(batch.warehouseId)) {
-                        return next(new Error(`Lô hàng thuộc kho ${batch.warehouseId} không thể bán cho đơn hàng tại kho ${order.warehouseId}`));
-                    }
                 }
             }
         } catch (error) {

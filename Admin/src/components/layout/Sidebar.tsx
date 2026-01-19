@@ -10,6 +10,7 @@ import {
   Settings,
   Pill,
   ArrowLeftRight,
+  PackageSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Sản phẩm', href: '/products', icon: Package },
   { name: 'Kho hàng', href: '/inventory', icon: Warehouse },
   { name: 'Lô hàng', href: '/batches', icon: Pill },
+  { name: 'Kho chi nhánh', href: '/branch-inventory', icon: PackageSearch },
   { name: 'Khách hàng', href: '/customers', icon: Users },
   { name: 'Chi nhánh', href: '/branches', icon: Building2 },
   { name: 'Chuyển kho', href: '/transfers', icon: ArrowLeftRight },

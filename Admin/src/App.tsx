@@ -8,6 +8,7 @@ import Orders from "./pages/Orders";
 import Products from "./pages/Products";
 import Inventory from "./pages/Inventory";
 import Batches from "./pages/Batches";
+import BranchInventory from "./pages/BranchInventory";
 import Customers from "./pages/Customers";
 import Branches from "./pages/Branches";
 import Transfers from "./pages/Transfers";
@@ -24,6 +25,7 @@ const AppRoutes = () => (
     <Route path="/products" element={<Products />} />
     <Route path="/inventory" element={<Inventory />} />
     <Route path="/batches" element={<Batches />} />
+    <Route path="/branch-inventory" element={<BranchInventory />} />
     <Route path="/customers" element={<Customers />} />
     <Route path="/branches" element={<Branches />} />
     <Route path="/transfers" element={<Transfers />} />

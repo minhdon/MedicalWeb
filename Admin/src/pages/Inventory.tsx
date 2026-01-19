@@ -43,6 +43,7 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showInStockOnly, setShowInStockOnly] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,12 +61,15 @@ export default function Inventory() {
   const [reason, setReason] = useState('');
 
   // Fetch Products for Inventory with pagination and search
-  const fetchInventory = async (page: number = 1, search: string = '') => {
+  const fetchInventory = async (page: number = 1, search: string = '', inStock: boolean = false) => {
     try {
       setLoading(true);
       let url = `http://127.0.0.1:3000/api/product/getAll?page=${page}&limit=${ITEMS_PER_PAGE}`;
       if (search) {
         url += `&search=${encodeURIComponent(search)}`;
+      }
+      if (inStock) {
+        url += `&inStockOnly=true`;
       }
       const res = await fetch(url);
       const data = await res.json();
@@ -102,14 +106,14 @@ export default function Inventory() {
   };
 
   useEffect(() => {
-    fetchInventory(currentPage, searchTerm);
-  }, [currentPage]);
+    fetchInventory(currentPage, searchTerm, showInStockOnly);
+  }, [currentPage, showInStockOnly]);
 
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
-      fetchInventory(1, searchTerm);
+      fetchInventory(1, searchTerm, showInStockOnly);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -120,7 +124,7 @@ export default function Inventory() {
     }
   };
 
-  // No client-side filter needed - search is server-side
+  // No client-side filter needed - filter is now server-side
   const filteredMedicines = medicines;
 
   const handleViewBatches = async (product: Medicine) => {
@@ -225,6 +229,19 @@ export default function Inventory() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
                 />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="inStockFilter"
+                  checked={showInStockOnly}
+                  onChange={(e) => setShowInStockOnly(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <label htmlFor="inStockFilter" className="text-sm text-muted-foreground whitespace-nowrap">
+                  Chỉ còn hàng
+                </label>
               </div>
 
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

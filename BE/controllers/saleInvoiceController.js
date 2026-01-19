@@ -5,6 +5,7 @@ import { Product } from '../models/product/Product.js';
 import { User } from '../models/auth/User.js';
 import { OrderStatus } from '../models/saleInvoice/OrderStatus.js';
 import { Role } from '../models/auth/Role.js'; // Import Role
+import { Warehouse } from '../models/warehouse/Warehouse.js';
 import mongoose from 'mongoose';
 
 // Create Invoice (Checkout)
@@ -65,25 +66,53 @@ export const createOrder = async (req, res) => {
         const invoiceId = newInvoice[0]._id;
         let calculatedTotal = 0;
 
-        // 4. Process Cart Items & Inventory
+        // 4. Determine warehouse for stock deduction
+        let salesWarehouseId = warehouseId;
+        if (!salesWarehouseId) {
+            // For online sales, use central warehouse
+            const centralWarehouse = await Warehouse.findOne({ warehouseType: 'central' }).session(session);
+            if (!centralWarehouse) {
+                throw new Error('Chưa cấu hình kho tổng. Vui lòng liên hệ admin.');
+            }
+            salesWarehouseId = centralWarehouse._id;
+        }
+
+        // Debug: Log which warehouse is being used
+        const warehouseInfo = await Warehouse.findById(salesWarehouseId).session(session);
+        console.log(`📦 Stock deduction from: ${warehouseInfo?.warehouseName || 'Unknown'} (${salesWarehouseId})`);
+        console.log(`   isInStoreSale: ${isInStoreSale}, warehouseId from request: ${warehouseId || 'NONE'}`);
+
+        // 5. Process Cart Items & Inventory (WITH UNIT CONVERSION)
         for (const item of cartItems) {
             const productId = item.id || item._id;
-            const reqQty = item.quantity;
-            let remainingReq = reqQty;
 
-            // Verify Stock
+            // CRITICAL: Convert customer's unit to base unit
+            const { convertToBaseUnit } = await import('../utils/unitConverter.js');
+            const { baseQuantity, baseUnit, ratio } = await convertToBaseUnit(
+                productId,
+                item.quantity,
+                item.unit || 'Đơn vị'  // Unit customer selected in cart
+            );
+
+            // Calculate price per base unit
+            // If customer bought 2 Hộp at 5000đ/Hộp, and 1 Hộp = 10 Viên
+            // Then unitPriceBase = 5000 / 10 = 500đ/Viên
+            const conversionRatio = ratio || (baseQuantity / item.quantity) || 1;
+            const unitPriceBase = item.cost / conversionRatio;
+
+            let remainingReq = baseQuantity;  // Now in base unit!
+
+            // Verify Stock (filter by warehouse!)
             const batches = await ProductBatch.find({
                 productId: productId,
+                warehouseId: salesWarehouseId,  // CRITICAL: Only from sales warehouse
                 remainingQuantity: { $gt: 0 },
                 expiryDate: { $gt: new Date() }
             }).sort({ expiryDate: 1 }).session(session);
 
             let totalAvailable = batches.reduce((sum, b) => sum + b.remainingQuantity, 0);
-            if (totalAvailable < reqQty) {
-                // throw new Error(`Sản phẩm ${item.productName} không đủ tồn kho`);
-                // For demo/soft requirements, we might allow oversell or just ignore batch. 
-                // Strict mode: throw error
-                throw new Error(`Sản phẩm ${item.productName || productId} không đủ tồn kho (Còn: ${totalAvailable})`);
+            if (totalAvailable < baseQuantity) {
+                throw new Error(`Sản phẩm ${item.productName || productId} không đủ tồn kho (Cần: ${baseQuantity} ${baseUnit}, Còn: ${totalAvailable} ${baseUnit})`);
             }
 
             // Deduct Inventory
@@ -97,14 +126,14 @@ export const createOrder = async (req, res) => {
                     saleInvoiceId: invoiceId,
                     batchId: batch._id,
                     productId: productId,
-                    quantity: deduct,
-                    unitPrice: item.cost,
-                    totalPrice: deduct * item.cost
+                    quantity: deduct,  // Stored in base unit
+                    unitPrice: unitPriceBase,  // Price per base unit
+                    totalPrice: deduct * unitPriceBase  // Correct total
                 }], { session });
 
                 remainingReq -= deduct;
             }
-            calculatedTotal += reqQty * item.cost;
+            calculatedTotal += item.quantity * item.cost;  // Use original quantity for price calc
         }
 
         // Update Total if needed (if frontend calc was wrong)
@@ -139,19 +168,40 @@ export const getAllOrders = async (req, res) => {
             .populate('staffId', 'fullName') // staff who processed in-store sale
             .sort({ createdAt: -1 });
 
-        const formattedOrders = orders.map(order => ({
-            id: order._id,
-            customerName: order.userId?.fullName || 'Guest',
-            customerPhone: order.userId?.phoneNum || '',
-            customerAddress: order.shippingAddress || order.userId?.address || '',
-            total: order.totalAmount,
-            status: order.statusId?.statusName || 'Unknown',
-            deliveryBranch: order.warehouseId?.warehouseName || null,
-            warehouseId: order.warehouseId?._id || null,
-            isInStoreSale: order.isInStoreSale || false,
-            staffName: order.staffId?.fullName || null,
-            paymentMethod: order.paymentMethod,
-            createdAt: order.createdAt
+        // Get order details for each order
+        const formattedOrders = await Promise.all(orders.map(async (order) => {
+            // Fetch order items from SaleInvoiceDetail
+            const details = await SaleInvoiceDetail.find({ saleInvoiceId: order._id })
+                .populate('productId', 'productName');
+
+            const items = details.map(d => ({
+                productId: d.productId?._id,
+                medicineName: d.productId?.productName || 'Unknown',
+                quantity: d.quantity,
+                price: d.unitPrice,
+                total: d.totalPrice
+            }));
+
+            // Calculate total quantity across all items
+            const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+            return {
+                id: order._id,
+                customerName: order.userId?.fullName || 'Guest',
+                customerPhone: order.userId?.phoneNum || '',
+                customerAddress: order.shippingAddress || order.userId?.address || '',
+                items: items,
+                itemCount: items.length,
+                totalQuantity: totalQuantity,  // Total units ordered
+                total: order.totalAmount,
+                status: order.statusId?.statusName || 'Unknown',
+                deliveryBranch: order.warehouseId?.warehouseName || null,
+                warehouseId: order.warehouseId?._id || null,
+                isInStoreSale: order.isInStoreSale || false,
+                staffName: order.staffId?.fullName || null,
+                paymentMethod: order.paymentMethod,
+                createdAt: order.createdAt
+            };
         }));
 
         res.status(200).json(formattedOrders);
@@ -219,19 +269,47 @@ export const updateOrder = async (req, res) => {
 
 // Delete Order (for Admin)
 export const deleteOrder = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const { id } = req.params;
 
-        // Delete order details first
-        await SaleInvoiceDetail.deleteMany({ saleInvoiceId: id });
+        // Find order details to restore stock
+        const details = await SaleInvoiceDetail.find({ saleInvoiceId: id }).session(session);
+
+        let restoredQuantity = 0;
+
+        // Restore stock to batches
+        for (const detail of details) {
+            await ProductBatch.updateOne(
+                { _id: detail.batchId },
+                { $inc: { remainingQuantity: detail.quantity } },
+                { session }
+            );
+            restoredQuantity += detail.quantity;
+        }
+
+        // Delete order details
+        await SaleInvoiceDetail.deleteMany({ saleInvoiceId: id }, { session });
 
         // Delete the order
-        await SaleInvoice.findByIdAndDelete(id);
+        await SaleInvoice.findByIdAndDelete(id, { session });
 
-        res.status(200).json({ message: 'Đã xóa đơn hàng' });
+        await session.commitTransaction();
+
+        res.status(200).json({
+            message: restoredQuantity > 0
+                ? `Đã xóa đơn hàng và hoàn trả ${restoredQuantity} sản phẩm về kho`
+                : 'Đã xóa đơn hàng',
+            restoredQuantity
+        });
     } catch (error) {
+        await session.abortTransaction();
         console.error("Delete Order Error:", error);
         res.status(500).json({ message: 'Lỗi khi xóa đơn hàng' });
+    } finally {
+        session.endSession();
     }
 };
 

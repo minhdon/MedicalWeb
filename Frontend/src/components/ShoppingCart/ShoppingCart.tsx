@@ -182,6 +182,12 @@ const ShoppingCart: React.FC = () => {
 
       // If staff is logged in, add warehouse and staff info for in-store sales tracking
       if (isStaff && user) {
+        console.log('🔍 DEBUG Staff Order:', {
+          userWarehouse: user.warehouse,
+          warehouseId: user.warehouse?._id || user.warehouse?.id,
+          staffId: user.id || user._id,
+          isStaff
+        });
         orderPayload.warehouseId = user.warehouse?._id || user.warehouse?.id || null;
         orderPayload.staffId = user.id || user._id;
         orderPayload.isInStoreSale = true; // Flag to indicate in-store sale

@@ -4,12 +4,14 @@ import {
     createWarehouse,
     updateWarehouse,
     deleteWarehouse,
-    toggleWarehouseStatus
+    toggleWarehouseStatus,
+    getWarehouseStock
 } from '../controllers/warehouseController.js';
 
 const router = express.Router();
 
 router.get('/getAll', getAllWarehouses);
+router.get('/:id/stock', getWarehouseStock);  // Get stock by warehouse
 router.post('/create', createWarehouse);
 router.put('/update/:id', updateWarehouse);
 router.delete('/delete/:id', deleteWarehouse);

@@ -3,14 +3,54 @@ import { ProductBatch } from '../models/product/ProductBatch.js';
 import mongoose from 'mongoose';
 import { Manufacturer } from '../models/manufacturer/Manufacturer.js';
 import { Category } from '../models/product/Category.js';
+import { InventoryTransfer } from '../models/warehouse/InventoryTransfer.js';
+import { Warehouse } from '../models/warehouse/Warehouse.js';
+
+/**
+ * Helper: Update stockQuantity for a product based on batches
+ * Call this after any batch create/update/delete
+ */
+export async function updateProductStock(productId) {
+    try {
+        // Find central warehouse
+        const centralWarehouse = await Warehouse.findOne({ warehouseType: 'central' });
+
+        // Build batch query
+        const batchQuery = { productId };
+        if (centralWarehouse) {
+            batchQuery.warehouseId = centralWarehouse._id;
+        }
+
+        // Calculate total stock
+        const batches = await ProductBatch.find(batchQuery);
+        const stockQuantity = batches.reduce((sum, b) => sum + (b.remainingQuantity || 0), 0);
+
+        // Find nearest expiry date
+        const validBatches = batches.filter(b => b.expiryDate && b.remainingQuantity > 0);
+        const sortedByExpiry = validBatches.sort((a, b) =>
+            new Date(a.expiryDate) - new Date(b.expiryDate)
+        );
+        const nearestExpiryDate = sortedByExpiry.length > 0 ? sortedByExpiry[0].expiryDate : null;
+
+        // Update product
+        await Product.updateOne(
+            { _id: productId },
+            { $set: { stockQuantity, nearestExpiryDate } }
+        );
+
+        return stockQuantity;
+    } catch (error) {
+        console.error(`Error updating stock for product ${productId}:`, error.message);
+        return null;
+    }
+}
 
 export const getAllProducts = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 12; // Mặc định 12 sản phẩm/trang
-        const skip = (page - 1) * limit;
 
-        const { search, filter, minPrice, maxPrice, brand, origin } = req.query;
+        const { search, filter, minPrice, maxPrice, brand, origin, inStockOnly } = req.query;
         let query = {};
 
         // Search by product name
@@ -54,33 +94,91 @@ export const getAllProducts = async (req, res) => {
             query.origin = { $regex: origin, $options: 'i' };
         }
 
+        // Find central warehouse
+        const centralWarehouse = await Warehouse.findOne({ warehouseType: 'central' });
+        const centralWarehouseId = centralWarehouse?._id;
+
+        console.log('Central warehouse:', centralWarehouse ? centralWarehouse.warehouseName : 'NOT FOUND');
+        // If no central warehouse, don't filter by warehouse (show all stock)
+
+        // If inStockOnly is enabled, we need to get ALL products first, calculate stock, filter, then paginate
+        if (inStockOnly === 'true') {
+            // Get ALL products matching query (no pagination yet)
+            const allProducts = await Product.find(query)
+                .populate('manufacturerId', 'manufacturerName')
+                .populate('categoryId', 'categoryName')
+                .populate('img')
+                .sort({ createdAt: -1 });
+
+            // Calculate stock for each product
+            const productsWithStock = await Promise.all(allProducts.map(async (p) => {
+                const batchQuery = { productId: p._id };
+                if (centralWarehouseId) {
+                    batchQuery.warehouseId = centralWarehouseId;
+                }
+
+                const batches = await ProductBatch.find(batchQuery);
+                const totalStock = batches.reduce((sum, batch) => sum + batch.remainingQuantity, 0);
+
+                const sortedBatches = batches.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+                const nearestExpiryDate = sortedBatches.length > 0 ? sortedBatches[0].expiryDate : null;
+
+                return {
+                    ...p.toObject(),
+                    id: p._id,
+                    cost: p.price,
+                    category: p.categoryId?.categoryName || '',
+                    quantity: totalStock,
+                    expiryDate: nearestExpiryDate
+                };
+            }));
+
+            // Filter products with stock > 0
+            const inStockProducts = productsWithStock.filter(p => p.quantity > 0);
+
+            // Apply pagination AFTER filtering
+            const totalProducts = inStockProducts.length;
+            const skip = (page - 1) * limit;
+            const paginatedProducts = inStockProducts.slice(skip, skip + limit);
+
+            return res.status(200).json({
+                data: paginatedProducts,
+                pagination: {
+                    currentPage: page,
+                    totalPages: Math.ceil(totalProducts / limit),
+                    totalDocs: totalProducts,
+                    limit: limit
+                },
+                currentPage: page,
+                totalPages: Math.ceil(totalProducts / limit),
+                totalProducts
+            });
+        }
+
+        // Normal flow - sort by pre-calculated stockQuantity (in-stock first)
+        const skip = (page - 1) * limit;
         const products = await Product.find(query)
             .skip(skip)
             .limit(limit)
             .populate('manufacturerId', 'manufacturerName')
             .populate('categoryId', 'categoryName')
-            .populate('img') // Nếu img là reference
-            .sort({ createdAt: -1 });
+            .populate('img')
+            .sort({ stockQuantity: -1, createdAt: -1 }); // Sort by stock DESC, then by date
 
         const totalProducts = await Product.countDocuments(query);
 
-        // Calculate real stock and nearest expiry from batches
-        const productsWithStock = await Promise.all(products.map(async (p) => {
-            const batches = await ProductBatch.find({ productId: p._id });
-            const totalStock = batches.reduce((sum, batch) => sum + batch.remainingQuantity, 0);
-
-            const sortedBatches = batches.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
-            const nearestExpiryDate = sortedBatches.length > 0 ? sortedBatches[0].expiryDate : null;
-
+        // Map products to response format using pre-calculated fields
+        const productsWithStock = products.map((p) => {
+            const pObj = p.toObject();
             return {
-                ...p.toObject(),
-                id: p._id, // Frontend expects 'id' for navigation
-                cost: p.price, // Frontend expects 'cost' field
-                category: p.categoryId?.categoryName || '', // Frontend uses this for prescription logic
-                quantity: totalStock, // Override with real stock
-                expiryDate: nearestExpiryDate
+                ...pObj,
+                id: p._id,
+                cost: p.price,
+                category: p.categoryId?.categoryName || '',
+                quantity: p.stockQuantity || 0, // Use pre-calculated field
+                expiryDate: p.nearestExpiryDate || null
             };
-        }));
+        });
 
         res.status(200).json({
             data: productsWithStock,
@@ -90,7 +188,6 @@ export const getAllProducts = async (req, res) => {
                 totalDocs: totalProducts,
                 limit: limit
             },
-            // Keep old format for backward compatibility
             currentPage: page,
             totalPages: Math.ceil(totalProducts / limit),
             totalProducts
@@ -133,8 +230,17 @@ export const getAllBatches = async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
-        const batches = await ProductBatch.find()
+        // Supports filtering by warehouseId
+        const { warehouseId } = req.query;
+        const query = {};
+
+        if (warehouseId && warehouseId !== 'all') {
+            query.warehouseId = warehouseId;
+        }
+
+        const batches = await ProductBatch.find(query)
             .populate('productId', 'productName unit packagingType')
+            .populate('warehouseId', 'warehouseName') // Populate warehouse name
             .sort({ expiryDate: 1 })
             .skip(skip)
             .limit(limit);
@@ -168,26 +274,41 @@ export const createBulkBatches = async (req, res) => {
         const purchaseInvoiceId = new mongoose.Types.ObjectId(); // Shared ID for this import session
 
         for (const batch of batches) {
-            const { productId, quantity, manufactureDate, expiryDate } = batch;
+            const { productId, quantity, unit, manufactureDate, expiryDate } = batch;
 
-            if (!productId || !quantity || quantity <= 0) continue; // Skip invalid
+            if (!productId || !quantity || quantity <= 0) continue;
 
             const product = await Product.findById(productId);
-            if (!product) continue; // Skip invalid products
+            if (!product) continue;
+
+            // Convert to base unit
+            const { convertToBaseUnit } = await import('../utils/unitConverter.js');
+            const { baseQuantity, baseUnit } = await convertToBaseUnit(
+                productId,
+                quantity,
+                unit || product.unit || 'Đơn vị'
+            );
 
             const newBatch = new ProductBatch({
                 productId,
                 purchaseInvoiceId,
-                warehouseId, // CRITICAL FIX
+                warehouseId,
+                quantity: baseQuantity,
+                remainingQuantity: baseQuantity,
+                baseUnit: baseUnit,
                 manufactureDate,
                 expiryDate,
-                quantity,
-                remainingQuantity: quantity,
                 dosage: product.unit || 'Viên',
                 administration: 'Uống'
             });
             await newBatch.save();
             createdBatches.push(newBatch);
+        }
+
+        // Update stockQuantity for all affected products
+        const uniqueProductIds = [...new Set(createdBatches.map(b => b.productId.toString()))];
+        for (const pid of uniqueProductIds) {
+            await updateProductStock(pid);
         }
 
         res.status(201).json(createdBatches);
@@ -214,20 +335,32 @@ export const createBatch = async (req, res) => {
         const product = await Product.findById(productId);
         if (!product) return res.status(404).json({ message: "Sản phẩm không tồn tại" });
 
+        // Convert to base unit
+        const { convertToBaseUnit } = await import('../utils/unitConverter.js');
+        const { baseQuantity, baseUnit } = await convertToBaseUnit(
+            productId,
+            quantity,
+            product.unit || 'Đơn vị'
+        );
+
         // Create Batch
         const newBatch = new ProductBatch({
             productId,
-            purchaseInvoiceId: new mongoose.Types.ObjectId(), // Mock ID
-            warehouseId, // CRITICAL FIX
+            purchaseInvoiceId: new mongoose.Types.ObjectId(),
+            warehouseId,
+            quantity: baseQuantity,
+            remainingQuantity: baseQuantity,
+            baseUnit: baseUnit,
             manufactureDate,
             expiryDate,
-            quantity,
-            remainingQuantity: quantity,
             dosage: product.unit || 'Viên',
             administration: 'Uống'
         });
-
         await newBatch.save();
+
+        // Update stockQuantity
+        await updateProductStock(productId);
+
         res.status(201).json(newBatch);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -247,21 +380,16 @@ export const updateBatch = async (req, res) => {
 
         if (!updatedBatch) return res.status(404).json({ message: "Lô hàng không tồn tại" });
 
+        // Update stockQuantity
+        await updateProductStock(updatedBatch.productId);
+
         res.status(200).json(updatedBatch);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-export const deleteBatch = async (req, res) => {
-    try {
-        const { id } = req.params;
-        await ProductBatch.findByIdAndDelete(id);
-        res.status(200).json({ message: "Xóa lô hàng thành công" });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
+
 
 // Get all batches belonging to a specific invoice (Lô hàng gộp)
 export const getBatchesByInvoice = async (req, res) => {
@@ -338,5 +466,117 @@ export const updateBatchGroup = async (req, res) => {
         res.status(200).json({ message: "Cập nhật lô hàng thành công" });
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+
+export const deleteBatch = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const { id } = req.params;
+
+        const batch = await ProductBatch.findById(id).session(session);
+        if (!batch) {
+            await session.abortTransaction();
+            return res.status(404).json({ message: 'Lô hàng không tồn tại' });
+        }
+
+        const quantityToRestore = batch.remainingQuantity;
+        const transferId = batch.transferId;
+
+        // If batch came from a transfer, restore stock to source warehouse
+        if (transferId) {
+            const transfer = await InventoryTransfer.findById(transferId).session(session);
+
+            if (transfer) {
+                // Find source batches for this product at source warehouse (FIFO order)
+                const sourceBatches = await ProductBatch.find({
+                    productId: batch.productId,
+                    warehouseId: transfer.fromWarehouseId
+                }).sort({ expiryDate: 1 }).session(session);
+
+                let remaining = quantityToRestore;
+
+                // Restore stock to source batches
+                for (const sourceBatch of sourceBatches) {
+                    if (remaining <= 0) break;
+
+                    // Calculate how much we can restore to this batch
+                    const maxRestore = sourceBatch.quantity - sourceBatch.remainingQuantity;
+                    const restoreQty = Math.min(remaining, maxRestore);
+
+                    if (restoreQty > 0) {
+                        await ProductBatch.updateOne(
+                            { _id: sourceBatch._id },
+                            { $inc: { remainingQuantity: restoreQty } },
+                            { session }
+                        );
+                        remaining -= restoreQty;
+                    }
+                }
+
+                // If we couldn't restore to existing batches, create a new one
+                if (remaining > 0) {
+                    await ProductBatch.create([{
+                        productId: batch.productId,
+                        warehouseId: transfer.fromWarehouseId,
+                        quantity: remaining,
+                        remainingQuantity: remaining,
+                        baseUnit: batch.baseUnit,
+                        manufactureDate: batch.manufactureDate,
+                        expiryDate: batch.expiryDate,
+                        dosage: batch.dosage,
+                        administration: batch.administration,
+                        purchaseInvoiceId: batch.purchaseInvoiceId
+                    }], { session });
+                }
+            }
+        }
+
+        // Delete the batch
+        await ProductBatch.deleteOne({ _id: id }, { session });
+
+        // Check if transfer has any remaining batches - if not, delete the transfer
+        let transferDeleted = false;
+        if (transferId) {
+            const remainingBatches = await ProductBatch.countDocuments({
+                transferId: transferId,
+                _id: { $ne: id }  // Exclude the just-deleted batch
+            }).session(session);
+
+            if (remainingBatches === 0) {
+                // No more batches from this transfer - delete the transfer
+                await InventoryTransfer.deleteOne({ _id: transferId }, { session });
+                transferDeleted = true;
+            }
+        }
+
+        await session.commitTransaction();
+
+        // Update stockQuantity for the affected product
+        await updateProductStock(batch.productId);
+
+        let message = 'Đã xóa lô hàng';
+        if (transferId && quantityToRestore > 0) {
+            message = `Đã xóa lô hàng và hoàn trả ${quantityToRestore} về kho nguồn`;
+        }
+        if (transferDeleted) {
+            message += '. Phiếu chuyển đã được xóa (hết sản phẩm).';
+        }
+
+        res.status(200).json({
+            message,
+            restoredQuantity: transferId ? quantityToRestore : 0,
+            transferDeleted
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        console.error('Error deleting batch:', error);
+        res.status(500).json({ message: 'Lỗi khi xóa lô hàng' });
+    } finally {
+        session.endSession();
     }
 };

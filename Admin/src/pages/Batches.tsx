@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Search, Filter, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Check, ChevronsUpDown, Package, Calendar, Eye } from 'lucide-react';
+import { Search, Filter, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Check, ChevronsUpDown, Package, Calendar, Eye, ArrowLeftRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils"
@@ -61,6 +61,7 @@ interface ProductBatch {
         packagingType: string;
     };
     purchaseInvoiceId?: string;
+    transferId?: string;  // From transfer
     quantity: number;
     remainingQuantity: number;
     manufactureDate: string;
@@ -80,6 +81,7 @@ interface InvoiceGroup {
     totalProducts: number;
     totalQuantity: number;
     createdDate: string;
+    isTransfer?: boolean;  // True if from transfer
 }
 
 const ProductSelect = ({
@@ -193,6 +195,45 @@ export default function Batches() {
     const [totalPages, setTotalPages] = useState(1);
     const [totalBatches, setTotalBatches] = useState(0);
 
+    // Filter State
+    const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('all');
+    const [warehouses, setWarehouses] = useState<{ id: string, name: string }[]>([]);
+
+    // Warehouse for import (declare before useEffect)
+    const [importWarehouseId, setImportWarehouseId] = useState<string>('');
+
+    useEffect(() => {
+        const fetchWarehouses = async () => {
+            try {
+                const res = await fetch('http://127.0.0.1:3000/api/warehouse/getAll');
+                const data = await res.json();
+                const warehouseList = data.data || data || [];
+                setWarehouses(warehouseList);
+
+                // Default to central warehouse (Kho Tổng)
+                const centralWarehouse = warehouseList.find((w: any) =>
+                    w.warehouseType === 'central' ||
+                    w.warehouseName === 'Kho Tổng' ||
+                    w.name === 'Kho Tổng'
+                );
+                console.log('Central warehouse found:', centralWarehouse);
+                if (centralWarehouse) {
+                    const warehouseId = centralWarehouse._id || centralWarehouse.id;
+                    console.log('Setting default warehouse:', warehouseId);
+                    setImportWarehouseId(warehouseId);
+                } else if (warehouseList.length > 0) {
+                    // Fallback to first warehouse
+                    const firstId = warehouseList[0]._id || warehouseList[0].id;
+                    console.log('No central found, using first:', firstId);
+                    setImportWarehouseId(firstId);
+                }
+            } catch (error) {
+                console.error("Failed to fetch warehouses", error);
+            }
+        };
+        fetchWarehouses();
+    }, []);
+
     // Dialog State
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState<ProductBatch | null>(null);
@@ -238,24 +279,29 @@ export default function Batches() {
         setImportItems(newItems);
     };
 
-    // Group batches by purchaseInvoiceId
+    // Group batches by purchaseInvoiceId or transferId
     const invoiceGroups = useMemo(() => {
         const groups: Record<string, InvoiceGroup> = {};
 
         batches.forEach(batch => {
-            const invoiceId = (batch as any).purchaseInvoiceId || batch._id;
-            if (!groups[invoiceId]) {
-                groups[invoiceId] = {
-                    invoiceId,
+            // Prioritize transferId for transferred batches
+            const batchAny = batch as any;
+            const groupId = batchAny.transferId || batchAny.purchaseInvoiceId || batch._id;
+            const isTransfer = !!batchAny.transferId;
+
+            if (!groups[groupId]) {
+                groups[groupId] = {
+                    invoiceId: groupId,
                     batches: [],
                     totalProducts: 0,
                     totalQuantity: 0,
-                    createdDate: batch.manufactureDate
+                    createdDate: batch.manufactureDate,
+                    isTransfer
                 };
             }
-            groups[invoiceId].batches.push(batch);
-            groups[invoiceId].totalProducts++;
-            groups[invoiceId].totalQuantity += batch.remainingQuantity;
+            groups[groupId].batches.push(batch);
+            groups[groupId].totalProducts++;
+            groups[groupId].totalQuantity += batch.remainingQuantity;
         });
 
         return Object.values(groups);
@@ -264,7 +310,11 @@ export default function Batches() {
     const fetchBatches = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`http://127.0.0.1:3000/api/product/batches/getAll?page=${page}&limit=20`);
+            let url = `http://127.0.0.1:3000/api/product/batches/getAll?page=${page}&limit=20`;
+            if (selectedWarehouseId !== 'all') {
+                url += `&warehouseId=${selectedWarehouseId}`;
+            }
+            const res = await fetch(url);
             const data = await res.json();
             if (data.data) {
                 setBatches(data.data);
@@ -295,7 +345,7 @@ export default function Batches() {
 
     useEffect(() => {
         fetchBatches();
-    }, [page]);
+    }, [page, selectedWarehouseId]);
 
     useEffect(() => {
         fetchProducts();
@@ -367,17 +417,22 @@ export default function Batches() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi lô hàng?')) return;
+        if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi lô hàng?\n(Nếu hàng từ chuyển kho, số lượng sẽ được hoàn trả về kho nguồn)')) return;
         try {
             const res = await fetch(`http://127.0.0.1:3000/api/product/batches/${id}`, {
                 method: 'DELETE'
             });
+            const data = await res.json();
             if (res.ok) {
-                toast.success('Xóa thành công');
+                if (data.restoredQuantity > 0) {
+                    toast.success(`${data.message}`);
+                } else {
+                    toast.success('Xóa thành công');
+                }
                 fetchBatches();
                 setIsDetailOpen(false);
             } else {
-                toast.error('Lỗi xóa lô hàng');
+                toast.error(data.message || 'Lỗi xóa lô hàng');
             }
         } catch (error) {
             toast.error('Lỗi kết nối');
@@ -395,6 +450,12 @@ export default function Batches() {
         const isAllFilled = validItems.every(item => item.quantity && item.manufactureDate && item.expiryDate);
         if (!isAllFilled) {
             toast.error('Vui lòng điền đầy đủ Ngày SX, Hạn SD và Số lượng');
+            return;
+        }
+
+        // Check warehouse selected (only for new imports)
+        if (!editingBatch && !importWarehouseId) {
+            toast.error('Vui lòng chọn kho nhập hàng');
             return;
         }
 
@@ -435,9 +496,11 @@ export default function Batches() {
 
             } else {
                 const payload = {
+                    warehouseId: importWarehouseId,
                     batches: validItems.map(item => ({
                         productId: item.productId,
                         quantity: parseInt(item.quantity),
+                        unit: item.unit,
                         manufactureDate: item.manufactureDate,
                         expiryDate: item.expiryDate
                     }))
@@ -483,6 +546,17 @@ export default function Batches() {
                         />
                     </div>
                     <div className="flex gap-2">
+                        <Select value={selectedWarehouseId} onValueChange={setSelectedWarehouseId}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Chọn kho" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tất cả kho</SelectItem>
+                                {warehouses.map((w) => (
+                                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <Button onClick={handleAdd} className="gap-2">
                             <Plus className="h-4 w-4" />
                             Nhập hàng
@@ -517,9 +591,21 @@ export default function Batches() {
                                 >
                                     <CardHeader className="pb-2">
                                         <div className="flex items-center justify-between">
-                                            <CardTitle className="text-lg font-mono">
-                                                #{group.invoiceId.slice(-6).toUpperCase()}
-                                            </CardTitle>
+                                            <div className="flex items-center gap-2">
+                                                <CardTitle className="text-lg font-mono">
+                                                    #{group.invoiceId.slice(-6).toUpperCase()}
+                                                </CardTitle>
+                                                {group.isTransfer ? (
+                                                    <Badge variant="outline" className="text-blue-600 border-blue-600">
+                                                        <ArrowLeftRight className="h-3 w-3 mr-1" />
+                                                        Chuyển kho
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-green-600 border-green-600">
+                                                        Nhập hàng
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             {hasExpired ? (
                                                 <Badge variant="destructive">Có hàng hết hạn</Badge>
                                             ) : hasNearExpiry ? (
@@ -572,6 +658,7 @@ export default function Batches() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Sản phẩm</TableHead>
+                                        <TableHead>Kho</TableHead>
                                         <TableHead>NSX</TableHead>
                                         <TableHead>HSD</TableHead>
                                         <TableHead>Đóng gói</TableHead>
@@ -590,6 +677,9 @@ export default function Batches() {
                                             <TableRow key={batch._id}>
                                                 <TableCell>
                                                     <span className="font-medium">{batch.productId?.productName}</span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">{(batch as any).warehouseId?.warehouseName || 'N/A'}</Badge>
                                                 </TableCell>
                                                 <TableCell>{format(new Date(batch.manufactureDate), 'dd/MM/yyyy')}</TableCell>
                                                 <TableCell className={isExpired ? 'text-destructive font-bold' : ''}>
@@ -642,6 +732,23 @@ export default function Batches() {
                         </DialogHeader>
 
                         <div className="py-4">
+                            {!editingBatch && (
+                                <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+                                    <Label className="text-sm font-medium mb-2 block">Kho nhập hàng *</Label>
+                                    <Select value={importWarehouseId} onValueChange={setImportWarehouseId}>
+                                        <SelectTrigger className="w-full max-w-md">
+                                            <SelectValue placeholder="Chọn kho nhập hàng..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {warehouses.map((w: any) => (
+                                                <SelectItem key={w._id || w.id} value={w._id || w.id}>
+                                                    {w.warehouseName || w.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                             {importItems.map((item, index) => (
                                 <div key={index} className="grid grid-cols-12 gap-4 items-end mb-6 border-b pb-6 last:border-0 last:pb-0">
                                     <div className="col-span-5 space-y-2">

@@ -3,8 +3,13 @@ import mongoose from 'mongoose'
 const inventoryTransferSchema = new mongoose.Schema({
     fromWarehouseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse', required: true },
     toWarehouseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse', required: true },
-    productBatchId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProductBatch', required: true },
-    quantity: { type: Number, required: true, min: 1 },
+
+    // Multi-product support (Product-Based Transfer)
+    products: [{
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+        quantity: { type: Number, required: true, min: 1 }
+    }],
+
     transferDate: { type: Date, default: Date.now },
     status: { type: String, enum: ['Pending', 'Completed', 'Cancelled'], default: 'Pending' },
     note: { type: String }

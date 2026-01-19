@@ -18,11 +18,16 @@ const productSchema = new mongoose.Schema({
     price: { type: Number, required: true }, // Giá bán (Mặc định)
     unit: { type: String }, // Đơn vị tính giá (VD: Hộp, Viên, Vỉ)
 
-    // Mảng chứa các đơn vị tính khác nhau (Hộp, Vỉ, Viên)
+    // Mảng chứa các đơn vị tính khác nhau (Hộp, Vỉ, Viên) với tỷ lệ quy đổi
     variants: [{
         unit: { type: String },
-        price: { type: Number }
+        price: { type: Number },
+        ratio: { type: Number, default: 1 }  // Tỷ lệ quy đổi (baseUnit có ratio = 1)
     }],
+
+    // Pre-calculated fields for efficient sorting (updated by sync script)
+    stockQuantity: { type: Number, default: 0, index: true }, // Total stock from central warehouse
+    nearestExpiryDate: { type: Date }, // Earliest expiry date among batches
 
     status: { type: Boolean, default: true }
 }, { timestamps: true });

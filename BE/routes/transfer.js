@@ -4,7 +4,8 @@ import {
     createTransfer,
     completeTransfer,
     cancelTransfer,
-    getTransferStats
+    getTransferStats,
+    deleteTransfer
 } from '../controllers/transferController.js';
 
 const router = express.Router();
@@ -23,5 +24,8 @@ router.put('/complete/:id', completeTransfer);
 
 // PUT /api/transfer/cancel/:id - Cancel a pending transfer
 router.put('/cancel/:id', cancelTransfer);
+
+// DELETE /api/transfer/:id - Delete transfer and restore stock
+router.delete('/:id', deleteTransfer);
 
 export default router;

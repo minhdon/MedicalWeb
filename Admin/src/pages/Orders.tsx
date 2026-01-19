@@ -55,7 +55,7 @@ export default function Orders() {
             customerName: o.customerName,
             customerPhone: o.customerPhone,
             customerAddress: o.customerAddress,
-            items: [], // Detail fetch needed or mock for list
+            items: o.items || [], // Use items from API
             total: o.total,
             status: (o.status.toLowerCase() === 'pending' ? 'pending' : 'confirmed') as Order['status'], // Cast to enum
             deliveryBranch: o.deliveryBranch,
@@ -220,7 +220,7 @@ export default function Orders() {
               <TableRow>
                 <TableHead>Mã đơn</TableHead>
                 <TableHead>Khách hàng</TableHead>
-                <TableHead>Sản phẩm</TableHead>
+                <TableHead>Số lượng</TableHead>
                 <TableHead>Tổng tiền</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead>Chi nhánh giao</TableHead>
@@ -240,7 +240,12 @@ export default function Orders() {
                         <p className="text-sm text-muted-foreground">{order.customerPhone}</p>
                       </div>
                     </TableCell>
-                    <TableCell>{order.items.length} sản phẩm</TableCell>
+                    <TableCell>
+                      <div>
+                        <span className="font-semibold">{(order as any).totalQuantity || order.items.reduce((s: number, i: any) => s + i.quantity, 0)} sản phẩm</span>
+                        <span className="text-sm text-muted-foreground ml-1">({order.items.length} loại)</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-semibold">
                       {order.total.toLocaleString('vi-VN')}đ
                     </TableCell>

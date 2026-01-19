@@ -9,10 +9,7 @@ export const getAllTransfers = async (req, res) => {
         const transfers = await InventoryTransfer.find()
             .populate('fromWarehouseId', 'warehouseName')
             .populate('toWarehouseId', 'warehouseName')
-            .populate({
-                path: 'productBatchId',
-                populate: { path: 'productId', select: 'productName' }
-            })
+            .populate('products.productId', 'productName unit')
             .sort({ createdAt: -1 });
 
         res.status(200).json({ data: transfers });
@@ -22,13 +19,13 @@ export const getAllTransfers = async (req, res) => {
     }
 };
 
-// Create transfer request
+// Create transfer request (Multi-Product)
 export const createTransfer = async (req, res) => {
     try {
-        const { fromWarehouseId, toWarehouseId, productBatchId, quantity, note } = req.body;
+        const { fromWarehouseId, toWarehouseId, products, note } = req.body;
 
         // Validation
-        if (!fromWarehouseId || !toWarehouseId || !productBatchId || !quantity) {
+        if (!fromWarehouseId || !toWarehouseId || !products || products.length === 0) {
             return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin' });
         }
 
@@ -36,39 +33,58 @@ export const createTransfer = async (req, res) => {
             return res.status(400).json({ message: 'Kho nguồn và kho đích không được trùng nhau' });
         }
 
-        if (quantity <= 0) {
-            return res.status(400).json({ message: 'Số lượng phải lớn hơn 0' });
-        }
+        // Validate stock for each product
+        for (const p of products) {
+            if (p.quantity <= 0) {
+                return res.status(400).json({ message: 'Số lượng phải lớn hơn 0' });
+            }
 
-        // Check batch exists and has enough stock
-        const batch = await ProductBatch.findById(productBatchId);
-        if (!batch) {
-            return res.status(404).json({ message: 'Lô hàng không tồn tại' });
-        }
+            // Convert to base unit for accurate stock checking
+            const { convertToBaseUnit } = await import('../utils/unitConverter.js');
+            const { baseQuantity, baseUnit } = await convertToBaseUnit(
+                p.productId,
+                p.quantity,
+                p.unit || 'Đơn vị'
+            );
 
-        if (batch.warehouseId.toString() !== fromWarehouseId) {
-            return res.status(400).json({ message: 'Lô hàng không thuộc kho nguồn' });
-        }
+            // Calculate total available stock for this product at source warehouse
+            const totalStock = await ProductBatch.aggregate([
+                {
+                    $match: {
+                        productId: new mongoose.Types.ObjectId(p.productId),
+                        warehouseId: new mongoose.Types.ObjectId(fromWarehouseId),
+                        baseUnit: baseUnit,
+                        remainingQuantity: { $gt: 0 }
+                    }
+                },
+                { $group: { _id: null, total: { $sum: '$remainingQuantity' } } }
+            ]);
 
-        if (batch.remainingQuantity < quantity) {
-            return res.status(400).json({
-                message: `Không đủ tồn kho. Hiện có: ${batch.remainingQuantity}, yêu cầu: ${quantity}`
-            });
+            const available = totalStock[0]?.total || 0;
+            if (available < baseQuantity) {
+                return res.status(400).json({
+                    message: `Không đủ tồn kho. Sản phẩm cần ${baseQuantity} ${baseUnit}, chỉ có ${available} ${baseUnit}`
+                });
+            }
         }
 
         // Create transfer
         const transfer = await InventoryTransfer.create({
             fromWarehouseId,
             toWarehouseId,
-            productBatchId,
-            quantity,
+            products,
             status: 'Pending',
             note: note || ''
         });
 
+        const populated = await InventoryTransfer.findById(transfer._id)
+            .populate('fromWarehouseId', 'warehouseName')
+            .populate('toWarehouseId', 'warehouseName')
+            .populate('products.productId', 'productName');
+
         res.status(201).json({
             message: 'Tạo phiếu chuyển kho thành công',
-            data: transfer
+            data: populated
         });
     } catch (error) {
         console.error(error);
@@ -76,7 +92,7 @@ export const createTransfer = async (req, res) => {
     }
 };
 
-// Complete transfer - moves stock from source to destination
+// Complete transfer - FEFO Logic
 export const completeTransfer = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -95,39 +111,67 @@ export const completeTransfer = async (req, res) => {
             return res.status(400).json({ message: 'Phiếu này đã được xử lý' });
         }
 
-        // Get source batch
-        const sourceBatch = await ProductBatch.findById(transfer.productBatchId).session(session);
-        if (!sourceBatch) {
-            await session.abortTransaction();
-            return res.status(404).json({ message: 'Lô hàng nguồn không tồn tại' });
+        // Process each product with FEFO
+        for (const productItem of transfer.products) {
+            const { productId, quantity } = productItem;
+
+            // Step 1: FEFO - Find batches sorted by expiry date (earliest first)
+            const batches = await ProductBatch.find({
+                productId,
+                warehouseId: transfer.fromWarehouseId,
+                remainingQuantity: { $gt: 0 }
+            }).sort({ expiryDate: 1 }).session(session);
+
+            let remaining = quantity;
+            const destinationBatches = [];
+
+            // Step 2: Deduct from source batches (FEFO)
+            for (const batch of batches) {
+                if (remaining <= 0) break;
+
+                const takeQty = Math.min(batch.remainingQuantity, remaining);
+
+                // Reduce source batch stock
+                await ProductBatch.updateOne(
+                    { _id: batch._id },
+                    { $inc: { remainingQuantity: -takeQty } },
+                    { session }
+                );
+
+                // Record for destination batch creation
+                destinationBatches.push({
+                    productId,
+                    quantity: takeQty,
+                    baseUnit: batch.baseUnit,  // Preserve baseUnit
+                    manufactureDate: batch.manufactureDate,
+                    expiryDate: batch.expiryDate,
+                    dosage: batch.dosage,
+                    administration: batch.administration
+                });
+
+                remaining -= takeQty;
+            }
+
+            // Verify all quantity was fulfilled
+            if (remaining > 0) {
+                await session.abortTransaction();
+                return res.status(400).json({
+                    message: `Không đủ tồn kho để hoàn thành chuyển. Thiếu ${remaining}`
+                });
+            }
+
+            // Step 3: Create batches at destination with transferId
+            for (const destBatch of destinationBatches) {
+                await ProductBatch.create([{
+                    ...destBatch,
+                    warehouseId: transfer.toWarehouseId,
+                    remainingQuantity: destBatch.quantity,
+                    transferId: transfer._id  // Link to the transfer
+                }], { session });
+            }
         }
 
-        // Verify stock still available
-        if (sourceBatch.remainingQuantity < transfer.quantity) {
-            await session.abortTransaction();
-            return res.status(400).json({
-                message: `Không đủ tồn kho. Hiện có: ${sourceBatch.remainingQuantity}`
-            });
-        }
-
-        // 1. Reduce source batch stock
-        sourceBatch.remainingQuantity -= transfer.quantity;
-        await sourceBatch.save({ session });
-
-        // 2. Create new batch at destination warehouse
-        const destBatch = await ProductBatch.create([{
-            productId: sourceBatch.productId,
-            purchaseInvoiceId: sourceBatch.purchaseInvoiceId,
-            warehouseId: transfer.toWarehouseId,
-            quantity: transfer.quantity,
-            remainingQuantity: transfer.quantity,
-            manufactureDate: sourceBatch.manufactureDate,
-            expiryDate: sourceBatch.expiryDate,
-            dosage: sourceBatch.dosage,
-            administration: sourceBatch.administration
-        }], { session });
-
-        // 3. Update transfer status
+        // Update transfer status
         transfer.status = 'Completed';
         transfer.transferDate = new Date();
         await transfer.save({ session });
@@ -136,10 +180,7 @@ export const completeTransfer = async (req, res) => {
 
         res.status(200).json({
             message: 'Chuyển kho thành công',
-            data: {
-                transfer,
-                newBatchId: destBatch[0]._id
-            }
+            data: transfer
         });
 
     } catch (error) {
@@ -182,11 +223,12 @@ export const cancelTransfer = async (req, res) => {
 export const getTransferStats = async (req, res) => {
     try {
         const stats = await InventoryTransfer.aggregate([
+            { $unwind: '$products' },
             {
                 $group: {
                     _id: '$status',
                     count: { $sum: 1 },
-                    totalQuantity: { $sum: '$quantity' }
+                    totalQuantity: { $sum: '$products.quantity' }
                 }
             }
         ]);
@@ -195,5 +237,102 @@ export const getTransferStats = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Lỗi khi lấy thống kê' });
+    }
+};
+
+// Delete transfer and restore stock to source warehouse
+export const deleteTransfer = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const { id } = req.params;
+
+        const transfer = await InventoryTransfer.findById(id).session(session);
+        if (!transfer) {
+            await session.abortTransaction();
+            return res.status(404).json({ message: 'Phiếu chuyển kho không tồn tại' });
+        }
+
+        let restoredCount = 0;
+
+        // If transfer was completed, restore stock
+        if (transfer.status === 'Completed') {
+            // Find all destination batches created by this transfer
+            const destinationBatches = await ProductBatch.find({
+                transferId: transfer._id
+            }).session(session);
+
+            // For each destination batch, restore to source warehouse
+            for (const destBatch of destinationBatches) {
+                const quantityToRestore = destBatch.remainingQuantity;
+
+                if (quantityToRestore > 0) {
+                    // Find source batches to restore to (FIFO)
+                    const sourceBatches = await ProductBatch.find({
+                        productId: destBatch.productId,
+                        warehouseId: transfer.fromWarehouseId
+                    }).sort({ expiryDate: 1 }).session(session);
+
+                    let remaining = quantityToRestore;
+
+                    // Restore stock to source batches
+                    for (const sourceBatch of sourceBatches) {
+                        if (remaining <= 0) break;
+
+                        const maxRestore = sourceBatch.quantity - sourceBatch.remainingQuantity;
+                        const restoreQty = Math.min(remaining, maxRestore);
+
+                        if (restoreQty > 0) {
+                            await ProductBatch.updateOne(
+                                { _id: sourceBatch._id },
+                                { $inc: { remainingQuantity: restoreQty } },
+                                { session }
+                            );
+                            remaining -= restoreQty;
+                            restoredCount += restoreQty;
+                        }
+                    }
+
+                    // If couldn't restore to existing batches, create new batch at source
+                    if (remaining > 0) {
+                        await ProductBatch.create([{
+                            productId: destBatch.productId,
+                            warehouseId: transfer.fromWarehouseId,
+                            quantity: remaining,
+                            remainingQuantity: remaining,
+                            baseUnit: destBatch.baseUnit,
+                            manufactureDate: destBatch.manufactureDate,
+                            expiryDate: destBatch.expiryDate,
+                            dosage: destBatch.dosage,
+                            administration: destBatch.administration
+                        }], { session });
+                        restoredCount += remaining;
+                    }
+                }
+
+                // Delete destination batch
+                await ProductBatch.deleteOne({ _id: destBatch._id }, { session });
+            }
+        }
+
+        // Delete the transfer
+        await InventoryTransfer.deleteOne({ _id: id }, { session });
+
+        await session.commitTransaction();
+
+        res.status(200).json({
+            message: restoredCount > 0
+                ? `Đã xóa phiếu chuyển và hoàn trả ${restoredCount} đơn vị về kho nguồn`
+                : 'Đã xóa phiếu chuyển kho',
+            restoredQuantity: restoredCount
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        console.error('Error deleting transfer:', error);
+        res.status(500).json({ message: 'Lỗi khi xóa phiếu chuyển kho' });
+    } finally {
+        session.endSession();
     }
 };
