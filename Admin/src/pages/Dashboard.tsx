@@ -39,67 +39,12 @@ export default function Dashboard() {
     const fetchDashboardStats = async () => {
       try {
         setLoading(true);
+        const res = await fetch(`${API_BASE}/statistics/dashboard`);
+        const data = await res.json();
 
-        // Fetch all data in parallel
-        const [ordersRes, productsRes, customersRes, warehousesRes, transfersRes] = await Promise.all([
-          fetch(`${API_BASE}/sale-invoice/getAll`),
-          fetch(`${API_BASE}/product/getAll?page=1&limit=1000`),
-          fetch(`${API_BASE}/customer/getAll`),
-          fetch(`${API_BASE}/warehouse/getAll`),
-          fetch(`${API_BASE}/transfer/getAll`)
-        ]);
-
-        const [ordersData, productsData, customersData, warehousesData, transfersData] = await Promise.all([
-          ordersRes.json(),
-          productsRes.json(),
-          customersRes.json(),
-          warehousesRes.json(),
-          transfersRes.json()
-        ]);
-
-        // Calculate stats
-        const orders = Array.isArray(ordersData) ? ordersData : [];
-        const products = productsData?.data || [];
-        const customers = customersData?.data || [];
-        const warehouses = warehousesData?.data || [];
-        const transfers = transfersData?.data || [];
-
-        // Revenue calculations
-        const today = new Date().toDateString();
-        const completedOrders = orders.filter((o: any) =>
-          o.status?.toLowerCase() === 'completed' || o.status?.toLowerCase() === 'delivered'
-        );
-        const totalRevenue = completedOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
-
-        const todayOrders = orders.filter((o: any) =>
-          new Date(o.createdAt).toDateString() === today
-        );
-        const todayRevenue = todayOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
-
-        // Pending orders
-        const pendingOrders = orders.filter((o: any) =>
-          o.status?.toLowerCase() === 'pending' || o.status?.toLowerCase() === 'chờ xử lý'
-        ).length;
-
-        // Low stock products (less than 10)
-        const lowStockCount = products.filter((p: any) => (p.quantity || 0) < 10).length;
-
-        // Pending transfers
-        const pendingTransfers = transfers.filter((t: any) => t.status === 'Pending').length;
-
-        setStats({
-          totalRevenue,
-          todayRevenue,
-          pendingOrders,
-          totalOrders: orders.length,
-          totalProducts: products.length,
-          totalCustomers: customers.length,
-          totalWarehouses: warehouses.length,
-          totalTransfers: transfers.length,
-          pendingTransfers,
-          lowStockCount
-        });
-
+        if (res.ok) {
+          setStats(data);
+        }
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
       } finally {

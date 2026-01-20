@@ -9,6 +9,7 @@ const productSchema = new mongoose.Schema({
     // Các trường chi tiết từ CSV
     ingredients: { type: String }, // Thành phần
     usage: { type: String },       // Cách dùng / Công dụng
+    dosage: { type: String },      // Liều dùng
     preservation: { type: String }, // Bảo quản
     sideEffects: { type: String }, // Tác dụng phụ
     precautions: { type: String }, // Lưu ý

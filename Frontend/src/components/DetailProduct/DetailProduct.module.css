@@ -2,6 +2,7 @@
 body {
   width: 100%;
 }
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -64,7 +65,7 @@ body {
 }
 
 .galleryItem.active {
-  border-color: #1d48ba;
+  border-color: #00b894;
 }
 
 .galleryImg {
@@ -79,7 +80,7 @@ body {
 }
 
 .brand {
-  color: #1d48ba;
+  color: #00b894;
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 5px;
@@ -104,7 +105,8 @@ body {
 }
 
 .rating {
-  color: #fdbf2d; /* Gold color for stars */
+  color: #fdbf2d;
+  /* Gold color for stars */
   display: flex;
   align-items: center;
   gap: 4px;
@@ -157,12 +159,12 @@ body {
 .currentPrice {
   font-size: 32px;
   font-weight: 700;
-  color: #1d48ba;
+  color: #00b894;
 }
 
 .unit {
   font-size: 18px;
-  color: #1d48ba;
+  color: #00b894;
 }
 
 .oldPrice {
@@ -194,14 +196,14 @@ body {
 }
 
 .link {
-  color: #1d48ba;
+  color: #00b894;
   text-decoration: none;
   cursor: pointer;
 }
 
 .unitTag {
-  border: 1px solid #1d48ba;
-  color: #1d48ba;
+  border: 1px solid #00b894;
+  color: #00b894;
   padding: 4px 12px;
   border-radius: 16px;
   font-size: 13px;
@@ -275,11 +277,12 @@ body {
 
 .btnBuy {
   flex: 1;
-  background-color: #1d48ba;
+  background-color: #00b894;
   color: white;
   border: none;
   padding: 12px;
-  border-radius: 30px; /* Pill shape */
+  border-radius: 30px;
+  /* Pill shape */
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -287,8 +290,8 @@ body {
 
 .btnFindStore {
   flex: 1;
-  background-color: #eef2fe;
-  color: #1d48ba;
+  background-color: #e6fffa;
+  color: #00b894;
   border: none;
   padding: 12px;
   border-radius: 30px;
@@ -328,7 +331,110 @@ body {
   .container {
     flex-direction: column;
   }
+
   .leftColumn {
     width: 100%;
   }
+
+  .tabsSection {
+    flex-direction: column;
+  }
+
+  .tabsSidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .tabButton {
+    flex: 0 0 auto;
+    padding: 10px 15px;
+  }
+}
+
+/* ===== TABS SECTION ===== */
+.tabsSection {
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 0 20px;
+  display: flex;
+  gap: 0;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tabsSidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: #f8f9fa;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabButton {
+  padding: 15px 20px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+  transition: all 0.2s ease;
+}
+
+.tabButton:hover {
+  background: #e6fffa;
+  color: #00b894;
+}
+
+.tabButtonActive {
+  background: #00b894;
+  color: white;
+}
+
+.tabButtonActive:hover {
+  background: #00b894;
+  color: white;
+}
+
+.tabContent {
+  flex: 1;
+  padding: 25px 30px;
+  min-height: 300px;
+  overflow-y: auto;
+}
+
+.tabContentTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00b894;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #00b894;
+}
+
+/* ===== WARNING NOTE ===== */
+.warningNote {
+  max-width: 1200px;
+  margin: 20px auto 50px;
+  padding: 15px 25px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.warningIcon {
+  font-size: 18px;
 }

@@ -222,7 +222,8 @@ export const getOrderById = async (req, res) => {
         const order = await SaleInvoice.findById(id)
             .populate('userId', 'fullName phoneNum address email')
             .populate('statusId', 'statusName')
-            .populate('warehouseId', 'warehouseName');
+            .populate('warehouseId', 'warehouseName address')
+            .populate('staffId', 'fullName');
 
         if (!order) {
             return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
@@ -254,7 +255,12 @@ export const getOrderById = async (req, res) => {
             status: order.statusId?.statusName || 'Pending',
             vnpayTransactionNo: order.vnpayTransactionNo || null,
             vnpayPayDate: order.vnpayPayDate || null,
-            createdAt: order.createdAt
+            createdAt: order.createdAt,
+            // New fields
+            staffName: order.staffId?.fullName || null,
+            branchName: order.warehouseId?.warehouseName || null,
+            branchAddress: order.warehouseId?.address || null,
+            isInStoreSale: order.isInStoreSale || false
         });
     } catch (error) {
         console.error("Get Order By ID Error:", error);

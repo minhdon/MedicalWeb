@@ -1,123 +1,152 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useCallback, useEffect } from "react";
+import useEmblaCarousel from "embla-carousel-react";
+import Autoplay from "embla-carousel-autoplay";
+import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import styles from "../CSS/Feedback.module.css";
 
+const testimonials = [
+  {
+    name: "Nguyễn Văn An",
+    rating: 5,
+    quote:
+      "Nhà thuốc rất uy tín, dược sĩ tư vấn nhiệt tình và chuyên nghiệp. Tôi rất yên tâm khi mua thuốc ở đây cho cả gia đình.",
+  },
+  {
+    name: "Huỳnh Tiết Triều",
+    rating: 5,
+    quote:
+      "Tôi bị bệnh mất trí nhớ sau khi dùng thuốc ở đây đã cải thiện rõ rệt. Cảm ơn nhà thuốc rất nhiều!",
+  },
+  {
+    name: "Lê Minh Cường",
+    rating: 5,
+    quote:
+      "Đã là khách hàng thân thiết hơn 3 năm. Chất lượng thuốc đảm bảo, nhân viên luôn thân thiện và nhiệt tình.",
+  },
+  {
+    name: "Phạm Thị Dung",
+    rating: 4,
+    quote:
+      "Rất hài lòng với dịch vụ giao hàng trong 2 giờ. Mỗi lần cần thuốc gấp đều được hỗ trợ kịp thời.",
+  },
+  {
+    name: "Hoàng Văn Em",
+    rating: 5,
+    quote:
+      "Nhà thuốc có đầy đủ các loại thuốc, từ thuốc thông thường đến thuốc chuyên khoa. Rất tiện lợi.",
+  },
+  {
+    name: "Vũ Thị Phương",
+    rating: 5,
+    quote:
+      "Tin tưởng tuyệt đối vào chất lượng thuốc ở đây. Đã giới thiệu cho nhiều bạn bè và người thân.",
+  },
+];
+
 export const Feedback = () => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const slideRef = useRef<HTMLDivElement>(null);
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: true, align: "start" },
+    [Autoplay({ delay: 4000, stopOnInteraction: false })]
+  );
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(true);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Số lượng feedback items (không tính duplicate)
-  const totalItems = 4;
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
-  // Box width + margin
-  const boxWidth = 720; // 700px + 20px margin (10px mỗi bên)
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
 
   useEffect(() => {
-    if (slideRef.current) {
-      slideRef.current.style.transform = `translateX(-${
-        currentIndex * boxWidth
-      }px)`;
-    }
-  }, [currentIndex]);
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+  }, [emblaApi, onSelect]);
 
-  const handleNext = () => {
-    setCurrentIndex((prev) => {
-      if (prev >= totalItems - 1) {
-        return 0; // Quay về đầu
-      }
-      return prev + 1;
-    });
-  };
+  const scrollTo = useCallback(
+    (index: number) => emblaApi?.scrollTo(index),
+    [emblaApi]
+  );
 
-  const handlePrev = () => {
-    setCurrentIndex((prev) => {
-      if (prev <= 0) {
-        return totalItems - 1; // Quay về cuối
-      }
-      return prev - 1;
-    });
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }).map((_, index) => (
+      <Star
+        key={index}
+        size={16}
+        className={index < rating ? styles.star : styles.starEmpty}
+        fill={index < rating ? "#fbbf24" : "none"}
+      />
+    ));
   };
 
   return (
-    <>
-      <section className={styles["feedback-container"]}>
-        <h1>
-          <span style={{ color: "#2b9474" }}>Customers</span>{" "}
-          <span style={{ color: "gray" }}>Feedback</span>
-        </h1>
+    <section className={styles.section}>
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h2 className={styles.title}>Khách Hàng Nói Gì Về Chúng Tôi</h2>
+          <p className={styles.subtitle}>
+            Những đánh giá chân thực từ khách hàng đã tin tưởng sử dụng dịch vụ
+          </p>
+        </div>
 
-        <section className={styles["feedback-wrapper"]}>
-          <div className={styles.feedback}>
-            <div className={styles["feedback-slide"]} ref={slideRef}>
-              <div className={`${styles.box} ${styles.fb4}`}>
-                <p>
-                  "Đây là nhà thuốc lớn, luôn có đầy đủ các loại thuốc từ thông
-                  thường đến chuyên khoa mà tôi cần, không phải đi tìm nhiều
-                  nơi. Giá cả cũng rất hợp lý, minh bạch. Đặc biệt, cách bố trí
-                  quầy kệ gọn gàng giúp tôi dễ dàng tìm kiếm sản phẩm."
-                </p>
-                <h4>
-                  <img src="/images/girl.png" alt="Avatar Chị Yến" />
-                  Chị Yến Bủm
-                </h4>
-              </div>
+        <div className={styles.carouselWrapper}>
+          <button
+            className={`${styles.navButton} ${styles.prevButton}`}
+            onClick={scrollPrev}
+          >
+            <ChevronLeft size={24} className={styles.navIcon} />
+          </button>
 
-              <div className={`${styles.box} ${styles.fb1}`}>
-                <p>
-                  "Dược sĩ ở đây rất chuyên nghiệp và tận tâm. Tôi bị cảm và ho
-                  kéo dài, được dược sĩ hỏi kỹ về triệu chứng, tiền sử bệnh và
-                  tư vấn rất chi tiết về cách dùng thuốc, liều lượng, và cả
-                  những lưu ý trong sinh hoạt. Nhờ sự hướng dẫn kỹ lưỡng mà tôi
-                  đã đỡ hơn rất nhiều. Cảm ơn nhà thuốc!"
-                </p>
-                <h4>
-                  <img src="/images/boy.png" alt="Avatar Anh Tin" />
-                  Anh Tin Ngo
-                </h4>
-              </div>
-
-              <div className={`${styles.box} ${styles.fb2}`}>
-                <p>
-                  "Tôi luôn tin tưởng mua thuốc và thực phẩm chức năng ở đây vì
-                  sản phẩm luôn là hàng mới, chính hãng, hạn sử dụng còn rất xa.
-                  Tôi rất yên tâm khi sử dụng sản phẩm cho cả gia đình. Nhà
-                  thuốc còn cam kết hoàn tiền nếu phát hiện hàng giả, điều này
-                  củng cố niềm tin rất lớn."
-                </p>
-                <h4>
-                  <img src="/images/boy.png" alt="Avatar Anh Kiệt" />
-                  Anh Kiệt Võ
-                </h4>
-              </div>
-
-              <div className={`${styles.box} ${styles.fb3}`}>
-                <p>
-                  "Tôi rất hài lòng với thái độ phục vụ của nhân viên. Dù đông
-                  khách nhưng các bạn luôn niềm nở, thân thiện, trò chuyện rất
-                  gần gũi. Hơn nữa, nhà thuốc có dịch vụ giao hàng tận nhà rất
-                  tiện lợi và nhanh chóng. Một trải nghiệm mua hàng tuyệt vời!"
-                </p>
-                <h4>
-                  <img src="/images/boy.png" alt="Avatar Anh Lực" />
-                  Anh Lực 8 tuổi
-                </h4>
-              </div>
+          <div className={styles.carousel} ref={emblaRef}>
+            <div className={styles.carouselContainer}>
+              {testimonials.map((testimonial, index) => (
+                <div key={index} className={styles.slide}>
+                  <div className={styles.card}>
+                    <div className={styles.cardHeader}>
+                      <div className={styles.avatar}>
+                        {testimonial.name.charAt(0)}
+                      </div>
+                      <div className={styles.info}>
+                        <h4 className={styles.name}>{testimonial.name}</h4>
+                        <div className={styles.rating}>
+                          {renderStars(testimonial.rating)}
+                        </div>
+                      </div>
+                    </div>
+                    <p className={styles.quote}>{testimonial.quote}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           <button
-            className={`${styles["carousel-btn"]} ${styles["prev-btn"]}`}
-            onClick={handlePrev}
+            className={`${styles.navButton} ${styles.nextButton}`}
+            onClick={scrollNext}
           >
-            <i className="fa-solid fa-arrow-left"></i>
+            <ChevronRight size={24} className={styles.navIcon} />
           </button>
-          <button
-            className={`${styles["carousel-btn"]} ${styles["next-btn"]}`}
-            onClick={handleNext}
-          >
-            <i className="fa-solid fa-arrow-right"></i>
-          </button>
-        </section>
-      </section>
-    </>
+        </div>
+
+        <div className={styles.dots}>
+          {Array.from({ length: Math.ceil(testimonials.length / 3) }).map(
+            (_, index) => (
+              <button
+                key={index}
+                className={`${styles.dot} ${selectedIndex === index ? styles.dotActive : ""
+                  }`}
+                onClick={() => scrollTo(index)}
+              />
+            )
+          )}
+        </div>
+      </div>
+    </section>
   );
 };

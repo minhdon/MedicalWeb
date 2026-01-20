@@ -21,6 +21,9 @@ interface OrderDetail {
     paymentStatus: string;
     createdAt: string;
     vnpayTransactionNo?: string;
+    staffName?: string;
+    branchName?: string;
+    branchAddress?: string;
 }
 
 const PaymentResult: React.FC = () => {
@@ -69,7 +72,10 @@ const PaymentResult: React.FC = () => {
                     paymentMethod: data.paymentMethod || 'VNPay',
                     paymentStatus: data.paymentStatus || 'paid',
                     createdAt: data.createdAt,
-                    vnpayTransactionNo: data.vnpayTransactionNo
+                    vnpayTransactionNo: data.vnpayTransactionNo,
+                    staffName: data.staffName || null,
+                    branchName: data.branchName || null,
+                    branchAddress: data.branchAddress || null
                 });
             }
         } catch (error) {
@@ -169,17 +175,17 @@ const PaymentResult: React.FC = () => {
                                     <p style={{ textAlign: 'center' }}>Đang tải...</p>
                                 ) : orderDetail ? (
                                     <>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                                            <div style={{ width: '48%' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap' }}>
+                                            <div style={{ width: '32%', minWidth: '200px' }}>
                                                 <h4 style={{ color: '#00b894', marginBottom: '8px' }}>Thông tin đơn hàng</h4>
                                                 <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Mã đơn:</strong> #{orderId?.slice(-8).toUpperCase()}</p>
                                                 <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Ngày:</strong> {formatDate(orderDetail.createdAt)}</p>
-                                                <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Thanh toán:</strong> VNPay</p>
+                                                <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Thanh toán:</strong> {orderDetail.paymentMethod}</p>
                                                 {orderDetail.vnpayTransactionNo && (
                                                     <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Mã GD:</strong> {orderDetail.vnpayTransactionNo}</p>
                                                 )}
                                             </div>
-                                            <div style={{ width: '48%' }}>
+                                            <div style={{ width: '32%', minWidth: '200px' }}>
                                                 <h4 style={{ color: '#00b894', marginBottom: '8px' }}>Khách hàng</h4>
                                                 <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Tên:</strong> {orderDetail.customerName}</p>
                                                 {orderDetail.customerPhone && (
@@ -187,6 +193,22 @@ const PaymentResult: React.FC = () => {
                                                 )}
                                                 {orderDetail.customerAddress && (
                                                     <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Địa chỉ:</strong> {orderDetail.customerAddress}</p>
+                                                )}
+                                            </div>
+                                            <div style={{ width: '32%', minWidth: '200px' }}>
+                                                <h4 style={{ color: '#00b894', marginBottom: '8px' }}>Chi nhánh bán hàng</h4>
+                                                {orderDetail.branchName ? (
+                                                    <>
+                                                        <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>CN:</strong> {orderDetail.branchName}</p>
+                                                        {orderDetail.branchAddress && (
+                                                            <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Địa chỉ:</strong> {orderDetail.branchAddress}</p>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <p style={{ margin: '4px 0', fontSize: '0.9rem', color: '#636e72' }}>Đơn hàng online</p>
+                                                )}
+                                                {orderDetail.staffName && (
+                                                    <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>NV bán hàng:</strong> {orderDetail.staffName}</p>
                                                 )}
                                             </div>
                                         </div>

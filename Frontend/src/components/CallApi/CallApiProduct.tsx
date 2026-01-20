@@ -5,6 +5,7 @@ const API_URL = "http://localhost:3000/api/product/getAll";
 // Export interface để File hiển thị có thể dùng lại
 export interface ApiData {
   id: number;
+  _id?: string; // MongoDB ID
   productName: string;
   cost: number;
   status: boolean;
@@ -20,6 +21,9 @@ export interface ApiData {
   manufacturer?: string;
   ingredients?: string;
   usage?: string;
+  dosage?: string; // Liều dùng/Cách dùng
+  sideEffects?: string; // Tác dụng phụ
+  precautions?: string; // Lưu ý
   preservation?: string;
 }
 

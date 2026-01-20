@@ -16,14 +16,14 @@ const StarIcon = () => (
 );
 
 const CheckShieldIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d48ba" strokeWidth="2">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00b894" strokeWidth="2">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     <path d="M9 12l2 2 4-4" />
   </svg>
 );
 
 const TruckIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d48ba" strokeWidth="2">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00b894" strokeWidth="2">
     <rect x="1" y="3" width="15" height="13" />
     <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
     <circle cx="5.5" cy="18.5" r="2.5" />
@@ -31,20 +31,25 @@ const TruckIcon = () => (
   </svg>
 );
 
-const LightningIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-  </svg>
-);
+// Tab options
+type TabKey = 'ingredients' | 'usage' | 'dosage' | 'sideEffects' | 'precautions' | 'preservation';
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'ingredients', label: 'Thành phần' },
+  { key: 'usage', label: 'Công dụng' },
+  { key: 'dosage', label: 'Cách dùng' },
+  { key: 'sideEffects', label: 'Tác dụng phụ' },
+  { key: 'precautions', label: 'Lưu ý' },
+  { key: 'preservation', label: 'Bảo quản' },
+];
 
 const ProductDetail: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [product, setProduct] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // State cho variant được chọn (Hộp/Vỉ/Viên)
   const [selectedVariant, setSelectedVariant] = useState<{ unit: string, price: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>('ingredients');
 
   const navigate = useNavigate();
   const [search] = useSearchParams();
@@ -57,9 +62,7 @@ const ProductDetail: React.FC = () => {
         setLoading(true);
         const data = await fetchProductById(productID);
         setProduct(data);
-        // Default select variants[0] or root price/unit
         if (data.variants && data.variants.length > 0) {
-          // Ưu tiên chọn Hộp làm mặc định nếu có
           const defaultVar = data.variants.find(v => v.unit === 'Hộp') || data.variants[0];
           setSelectedVariant(defaultVar);
         } else {
@@ -75,17 +78,13 @@ const ProductDetail: React.FC = () => {
     loadDetail();
   }, [productID]);
 
-  // Handle Add To Cart với Unit đã chọn
-  // isBuyNow = true -> Save to 'buyNowCart' -> Navigate
   const handleAddToCart = (item: ApiData, isBuyNow = false) => {
-    // Clone item và override price/unit theo selectedVariant
     const itemToAdd = {
       ...item,
       cost: selectedVariant?.price || item.cost,
       unit: selectedVariant?.unit || item.unit
     };
 
-    // 1. Nếu Mua Ngay -> Lưu vào storage RIÊNG 'buyNowCart'
     if (isBuyNow) {
       const buyNowItem: CartItem = { ...itemToAdd, quantity: 1, status: true };
       localStorage.setItem("buyNowCart", JSON.stringify([buyNowItem]));
@@ -96,13 +95,11 @@ const ProductDetail: React.FC = () => {
     const cartData = localStorage.getItem("shoppingCart");
     let cartItems: CartItem[] = cartData ? JSON.parse(cartData) : [];
 
-    // Logic check duplicate
     const existingItemIndex = cartItems.findIndex(
       (cartItem) => String(cartItem._id) === String(item._id) && cartItem.unit === itemToAdd.unit
     );
 
     if (existingItemIndex < 0) {
-      // Add new item with status = true
       const newItem: CartItem = { ...itemToAdd, quantity: 1, status: true };
       cartItems.push(newItem);
     } else {
@@ -113,18 +110,42 @@ const ProductDetail: React.FC = () => {
     alert(`Đã thêm ${itemToAdd.unit} vào giỏ hàng!`);
   };
 
+  // Get content for active tab
+  const getTabContent = () => {
+    if (!product) return <p style={{ color: '#666' }}>Chưa có dữ liệu.</p>;
+
+    const content: Record<TabKey, string | undefined> = {
+      ingredients: product.ingredients,
+      usage: product.usage,
+      dosage: product.dosage || product.usage, // fallback to usage if no dosage
+      sideEffects: product.sideEffects,
+      precautions: product.precautions,
+      preservation: product.preservation,
+    };
+
+    const text = content[activeTab];
+    if (!text) {
+      return <p style={{ color: '#888', fontStyle: 'italic' }}>Chưa có dữ liệu.</p>;
+    }
+
+    return (
+      <div style={{ whiteSpace: 'pre-line', lineHeight: 1.7, color: '#333' }}>
+        {text}
+      </div>
+    );
+  };
+
   if (!productID) return <div>Invalid Product ID</div>;
   if (loading) return <div className={styles.loading}>Đang tải chi tiết sản phẩm...</div>;
   if (error || !product) return <div className={styles.error}>{error || "Sản phẩm không tồn tại"}</div>;
 
-  // Giá hiển thị lấy từ selectedVariant
   const displayPrice = selectedVariant ? selectedVariant.price : (product.cost || 0);
   const displayUnit = selectedVariant ? selectedVariant.unit : (product.unit || 'Hộp');
 
   return (
     <div className={styles.hero}>
       <div className={styles.container}>
-        {/* ... Left Column (Images) ... giữ nguyên ... */}
+        {/* Left Column - Images */}
         <div className={styles.leftColumn}>
           <div className={styles.mainImageContainer}>
             <img src={product.img} alt={product.productName} className={styles.mainImage} />
@@ -136,7 +157,7 @@ const ProductDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* ... Right Column ... */}
+        {/* Right Column - Info */}
         <div className={styles.rightColumn}>
           <div className={styles.brand}>Thương hiệu: {product.brand || "Đang cập nhật"}</div>
           <h1 className={styles.title}>{product.productName}</h1>
@@ -159,7 +180,7 @@ const ProductDetail: React.FC = () => {
           </div>
 
           <div className={styles.specsContainer}>
-            {/* Selected Variants UI */}
+            {/* Variant Selector */}
             {product.variants && product.variants.length > 0 && (
               <div className={styles.specRow}>
                 <span className={styles.specLabel}>Chọn đơn vị tính</span>
@@ -170,8 +191,8 @@ const ProductDetail: React.FC = () => {
                       onClick={() => setSelectedVariant(v)}
                       className={styles.unitTag}
                       style={{
-                        border: selectedVariant?.unit === v.unit ? '2px solid #1d48ba' : '1px solid #ddd',
-                        color: selectedVariant?.unit === v.unit ? '#1d48ba' : '#333',
+                        border: selectedVariant?.unit === v.unit ? '2px solid #00b894' : '1px solid #ddd',
+                        color: selectedVariant?.unit === v.unit ? '#00b894' : '#333',
                         fontWeight: selectedVariant?.unit === v.unit ? 'bold' : 'normal',
                         backgroundColor: 'white',
                         cursor: 'pointer',
@@ -198,26 +219,6 @@ const ProductDetail: React.FC = () => {
               <span className={styles.specLabel}>Nhà sản xuất</span>
               <span className={styles.specValue}>{product.manufacturer || product.brand || "Đang cập nhật"}</span>
             </div>
-
-            {/* Thành phần/Công dụng/Bảo quản... (Giữ nguyên) */}
-            {product.ingredients && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>Thành phần</span>
-                <span className={styles.specValue} style={{ whiteSpace: 'pre-line' }}>{product.ingredients}</span>
-              </div>
-            )}
-            {product.usage && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>Công dụng & Cách dùng</span>
-                <span className={styles.specValue} style={{ whiteSpace: 'pre-line' }}>{product.usage}</span>
-              </div>
-            )}
-            {product.preservation && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>Bảo quản</span>
-                <span className={styles.specValue}>{product.preservation}</span>
-              </div>
-            )}
           </div>
 
           {/* Buttons Group */}
@@ -229,17 +230,17 @@ const ProductDetail: React.FC = () => {
                 Tư vấn ngay
               </button>
             ) : (
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
                 <button
                   className={styles.btnBuy}
-                  style={{ backgroundColor: '#1d48ba' }}
+                  style={{ backgroundColor: '#00b894' }}
                   onClick={() => product && handleAddToCart(product, true)}
                 >
                   Mua ngay
                 </button>
                 <button
                   className={styles.btnBuy}
-                  style={{ backgroundColor: '#fff', color: '#1d48ba', border: '1px solid #1d48ba' }}
+                  style={{ backgroundColor: '#fff', color: '#00b894', border: '1px solid #00b894' }}
                   onClick={() => product && handleAddToCart(product, false)}
                 >
                   Thêm vào giỏ
@@ -249,7 +250,7 @@ const ProductDetail: React.FC = () => {
             <button className={styles.btnFindStore}>Tìm nhà thuốc</button>
           </div>
 
-          {/* Footer Badges (Giữ nguyên) */}
+          {/* Footer Badges */}
           <div className={styles.footerBadges}>
             <div className={styles.badgeItem}>
               <CheckShieldIcon />
@@ -261,6 +262,33 @@ const ProductDetail: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Product Details Tabs Section */}
+      <div className={styles.tabsSection}>
+        <div className={styles.tabsSidebar}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              className={`${styles.tabButton} ${activeTab === tab.key ? styles.tabButtonActive : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className={styles.tabContent}>
+          <h2 className={styles.tabContentTitle}>
+            {TABS.find(t => t.key === activeTab)?.label} của {product.productName}
+          </h2>
+          {getTabContent()}
+        </div>
+      </div>
+
+      {/* Warning Note */}
+      <div className={styles.warningNote}>
+        <span className={styles.warningIcon}>⚠️</span>
+        Mọi thông tin trên đây chỉ mang tính chất tham khảo. Việc sử dụng thuốc phải tuân theo hướng dẫn của bác sĩ chuyên môn.
       </div>
     </div>
   );

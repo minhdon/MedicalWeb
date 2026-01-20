@@ -225,6 +225,7 @@ export const updateProduct = async (req, res) => {
             productDesc,
             ingredients,
             usage,
+            dosage,
             preservation,
             sideEffects,
             precautions,
@@ -248,6 +249,7 @@ export const updateProduct = async (req, res) => {
         if (productDesc !== undefined) product.productDesc = productDesc;
         if (ingredients !== undefined) product.ingredients = ingredients;
         if (usage !== undefined) product.usage = usage;
+        if (dosage !== undefined) product.dosage = dosage;
         if (preservation !== undefined) product.preservation = preservation;
         if (sideEffects !== undefined) product.sideEffects = sideEffects;
         if (precautions !== undefined) product.precautions = precautions;

@@ -68,6 +68,7 @@ export default function Products() {
           manufacturer: p.manufacturerId?.manufacturerName || p.manufacturer || 'Đang cập nhật',
           ingredients: p.ingredients || '',
           usage: p.usage || '',
+          dosage: p.dosage || '',
           preservation: p.preservation || '',
           sideEffects: p.sideEffects || '',
           precautions: p.precautions || '',
@@ -122,6 +123,7 @@ export default function Products() {
     manufacturer: '',
     ingredients: '',
     usage: '',
+    dosage: '',
     preservation: '',
     sideEffects: '',
     precautions: '',
@@ -146,6 +148,7 @@ export default function Products() {
       manufacturer: '',
       ingredients: '',
       usage: '',
+      dosage: '',
       preservation: '',
       sideEffects: '',
       precautions: '',
@@ -169,6 +172,7 @@ export default function Products() {
       manufacturer: medicine.manufacturer,
       ingredients: medicine.ingredients || '',
       usage: medicine.usage || '',
+      dosage: medicine.dosage || '',
       preservation: medicine.preservation || '',
       sideEffects: medicine.sideEffects || '',
       precautions: medicine.precautions || '',
@@ -215,6 +219,7 @@ export default function Products() {
             productDesc: formData.description,
             ingredients: formData.ingredients,
             usage: formData.usage,
+            dosage: formData.dosage,
             preservation: formData.preservation,
             sideEffects: formData.sideEffects,
             precautions: formData.precautions,
@@ -383,11 +388,19 @@ export default function Products() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="usage">Công dụng / Cách dùng</Label>
+                    <Label htmlFor="usage">Công dụng</Label>
                     <Textarea
                       id="usage"
                       value={formData.usage}
                       onChange={(e) => setFormData({ ...formData, usage: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dosage">Cách dùng / Liều dùng</Label>
+                    <Textarea
+                      id="dosage"
+                      value={formData.dosage}
+                      onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">

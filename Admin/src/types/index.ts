@@ -10,6 +10,7 @@ export interface Medicine {
   manufacturer: string;
   ingredients?: string;
   usage?: string;
+  dosage?: string;
   preservation?: string;
   sideEffects?: string;
   precautions?: string;

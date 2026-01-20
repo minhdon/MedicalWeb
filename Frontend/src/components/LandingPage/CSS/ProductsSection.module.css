@@ -1,0 +1,291 @@
+/* ProductsSection.module.css */
+
+.section {
+    padding: 5rem 2rem;
+    background: white;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 0 1rem;
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #0066cc;
+    margin-bottom: 1rem;
+}
+
+.subtitle {
+    color: #64748b;
+    font-size: 1.1rem;
+}
+
+/* --- Carousel Wrapper --- */
+.carouselWrapper {
+    position: relative;
+    width: 100%;
+    padding: 0 3rem;
+    /* Padding để chừa chỗ cho nút điều hướng */
+    box-sizing: border-box;
+}
+
+.carousel {
+    overflow: hidden;
+}
+
+.carouselContainer {
+    display: flex;
+    gap: 1.5rem;
+    /* Khoảng cách giữa các item */
+    /* align-items: stretch; Giúp các card cao bằng nhau */
+}
+
+/* --- LOGIC CHIA CỘT RESPONSIVE --- */
+
+/* Mặc định PC: 4 cột */
+.slide {
+    /* Công thức: (100% / số cột) - (tổng gap / số cột) */
+    /* 4 cột, gap 1.5rem -> trừ đi khoảng 1.125rem */
+    flex: 0 0 calc(25% - 1.125rem);
+    min-width: 0;
+}
+
+/* Tablet: 3 cột */
+@media (max-width: 1024px) {
+    .slide {
+        flex: 0 0 calc(33.333% - 1rem);
+    }
+
+    .title {
+        font-size: 2rem;
+    }
+}
+
+/* Mobile ngang / Tablet nhỏ: 2 cột */
+@media (max-width: 768px) {
+    .section {
+        padding: 3rem 1rem;
+    }
+
+    .carouselWrapper {
+        padding: 0;
+        /* Bỏ padding hông vì nút đã ẩn hoặc đè lên */
+    }
+
+    .slide {
+        flex: 0 0 calc(50% - 0.75rem);
+    }
+
+    .imageWrapper {
+        height: 150px;
+        /* Giảm chiều cao ảnh chút cho cân đối */
+    }
+}
+
+/* Mobile dọc: 1 cột */
+@media (max-width: 480px) {
+    .slide {
+        flex: 0 0 100%;
+        /* Full width */
+    }
+
+    .title {
+        font-size: 1.75rem;
+    }
+
+    .subtitle {
+        font-size: 0.95rem;
+    }
+
+    .header {
+        margin-bottom: 2rem;
+    }
+}
+
+/* --- Product Card Styles --- */
+.productCard {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    height: 100%;
+    /* Để card fill chiều cao slide */
+    display: flex;
+    flex-direction: column;
+}
+
+.productCard:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 40px rgba(0, 102, 204, 0.15);
+}
+
+.imageWrapper {
+    position: relative;
+    height: 180px;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.productInfo {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    /* Đẩy nội dung chiếm hết khoảng trống còn lại */
+}
+
+.productName {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    height: 2.5em;
+    /* Cố định chiều cao tên để card đều nhau */
+}
+
+.productPrice {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0066cc;
+    margin-bottom: 1rem;
+    margin-top: auto;
+    /* Đẩy giá xuống dưới nếu tên ngắn */
+}
+
+.viewBtn {
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #0066cc, #004499);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.viewBtn:hover {
+    opacity: 0.9;
+}
+
+/* --- Navigation Buttons --- */
+.navButton {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.navButton:hover {
+    background: #0066cc;
+    border-color: #0066cc;
+}
+
+.navButton:hover .navIcon {
+    color: white;
+}
+
+.navButton:disabled {
+    opacity: 0;
+    /* Ẩn luôn nếu không click được cho gọn */
+    pointer-events: none;
+}
+
+.prevButton {
+    left: 0;
+}
+
+.nextButton {
+    right: 0;
+}
+
+.navIcon {
+    color: #0066cc;
+}
+
+/* Ẩn nút điều hướng trên mobile vì người dùng quen vuốt (swipe) */
+@media (max-width: 768px) {
+    .navButton {
+        display: none;
+    }
+}
+
+/* --- Dots --- */
+.dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+    /* Cho phép xuống dòng nếu quá nhiều dot */
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+    /* Fix lỗi padding mặc định của button */
+}
+
+.dotActive {
+    background: #0066cc;
+    width: 30px;
+    border-radius: 5px;
+}
+
+.viewAllBtn {
+    margin-top: 2rem;
+    padding: 1rem 2.5rem;
+    background: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 480px) {
+    .viewAllBtn {
+        width: 100%;
+        /* Nút full width trên mobile nhỏ */
+        padding: 0.8rem 1rem;
+    }
+}

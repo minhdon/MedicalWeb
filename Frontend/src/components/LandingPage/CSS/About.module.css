@@ -1,71 +1,139 @@
-.about {
-  width: 80%;
-  height: 70vh;
-  margin-left: 10vw;
-
-  margin-top: 5%;
-
-  border-radius: 10px;
-  background: linear-gradient(to bottom, #e2e4de, #768e52);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.section {
+  padding: 5rem 2rem;
+  background: #f8fafc;
 }
 
-.about .aboutImg {
-  width: 40%;
-  height: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  margin-top: 100px;
-}
-.about .aboutImg img {
-  width: 250px;
-  height: 250px;
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.about .aboutPharmaContent {
-  height: 100%;
-  width: 80%;
-
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-}
-
-.about .aboutPharmaContent p {
-  color: #fff;
+.header {
   text-align: center;
-  padding: 20px;
-  font-size: 2.5rem;
-  font-family: "roboto";
+  margin-bottom: 3rem;
 }
 
-@media (max-width: 768px) {
-  .about {
-    width: 95%;
-    margin-left: 2.5%; /* Center it */
-    height: auto;
-    padding-bottom: 20px;
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #0066cc;
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.card {
+  position: relative;
+  height: 280px;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.95);
+  animation: scaleIn 0.5s ease-out forwards;
+}
+
+.card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.card:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+.card:nth-child(6) {
+  animation-delay: 0.6s;
+}
+
+.cardImage {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #0066cc, #004499);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardIcon {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  transform: translateY(100%);
+  transition: all 0.3s ease;
+}
+
+.card:hover .overlay {
+  transform: translateY(0);
+}
+
+.card:hover .cardImage {
+  transform: scale(1.05);
+  transition: transform 0.3s ease;
+}
+
+.cardTitle {
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.cardDesc {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+}
+
+@keyframes scaleIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
   }
 
-  .about .aboutImg {
-    width: 100%;
-    margin-top: 20px;
-  }
-  
-  .about .aboutImg img {
-    width: 150px;
-    height: 150px;
+  .title {
+    font-size: 2rem;
   }
 
-  .about .aboutPharmaContent {
-    width: 100%;
-  }
-
-  .about .aboutPharmaContent p {
-    font-size: 1.5rem;
+  .card {
+    height: 220px;
   }
 }

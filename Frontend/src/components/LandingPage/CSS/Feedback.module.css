@@ -1,148 +1,200 @@
-.feedback-container {
-  margin-top: 10vh;
-  width: 100vw;
-  height: 60vh;
-  /* border: 2px solid red; */
-  background: #f1e7e7;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-}
-.feedback-container h1 {
-  font-size: 4.5rem;
+.section {
+  padding: 5rem 2rem;
+  background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
 }
 
-.feedback-wrapper {
-  position: relative;
-
-  width: 730px;
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* 2. Vùng chứa (Viewport), ẩn phần tràn */
-.feedback {
-  width: 100%;
-  overflow: hidden; /* Đây là chìa khóa */
-
-  border-radius: 10px;
-}
-
-/* 3. Thanh trượt (Slide), chứa TẤT CẢ các box */
-.feedback-slide {
-  display: flex;
-  /* Hiệu ứng trượt mượt */
-  transition: transform 0.5s ease-in-out;
-}
-
-/* 4. Kiểu dáng chung cho mỗi box */
-.feedback-slide .box {
-  width: 700px; /* Kích thước cố định cho 1 box */
-  height: 300px; /* Lề 10px mỗi bên (tạo lề giữa 20px) */
-  flex-shrink: 0; /* Ngăn box bị co lại */
-  margin: 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-direction: column;
-
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: #2b9474;
-  box-sizing: border-box;
-  border-radius: 30px;
-  overflow: hidden;
-  background: #fff;
-}
-.feedback-slide .box p {
-  font-size: 1.5rem;
-  font-weight: normal;
-  color: gray;
-  width: 80%;
+.header {
   text-align: center;
-  font-style: italic;
-  margin-top: 10%;
+  margin-bottom: 3rem;
 }
-.feedback-slide .box h4 {
-  font-size: 1.7rem;
-  color: black;
-  font-weight: normal;
-  margin-left: 40%;
-  margin-bottom: 5%;
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 1rem;
 }
-.feedback-slide .box img {
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.1rem;
+}
+
+.carouselWrapper {
   position: relative;
-  top: 20px;
-  margin-right: 10px;
-  width: 60px;
+  padding: 0 3rem;
 }
-.carousel-btn {
+
+.carousel {
+  overflow: hidden;
+}
+
+.carouselContainer {
+  display: flex;
+}
+
+.slide {
+  flex: 0 0 calc(33.333% - 1rem);
+  min-width: 0;
+  margin: 1rem;
+}
+
+.card {
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  height: 100%;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.avatar {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #0066cc, #004499);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.info {
+  flex: 1;
+}
+
+.name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.rating {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.star {
+  color: #fbbf24;
+}
+
+.starEmpty {
+  color: #e2e8f0;
+}
+
+.quote {
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-style: italic;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.quote::before {
+  content: '"';
+  position: absolute;
+  left: 0;
+  top: -10px;
+  font-size: 3rem;
+  color: #0066cc;
+  opacity: 0.3;
+  font-family: Georgia, serif;
+}
+
+.navButton {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background-color: #fff;
-  color: black;
-  border: 1px solid #5eca06;
-
-  cursor: pointer;
-  font-size: 1.5rem;
-  z-index: 10;
+  width: 48px;
+  height: 48px;
+  background: white;
+  border: none;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.navButton:hover {
+  background: #f8fafc;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.navButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prevButton {
+  left: 0;
+}
+
+.nextButton {
+  right: 0;
+}
+
+.navIcon {
+  color: #0066cc;
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dotActive {
+  background: white;
   width: 30px;
-  height: 30px;
-}
-.carousel-btn i {
-  font-size: 1.2rem;
+  border-radius: 5px;
 }
 
-.prev-btn {
-  left: -100px;
+@media (max-width: 1024px) {
+  .slide {
+    flex: 0 0 calc(50% - 0.75rem);
+  }
 }
-.next-btn {
-  right: -100px;
-}
 
-@media (max-width: 768px) {
-  .feedback-container {
-    height: auto;
-    padding: 50px 0;
+@media (max-width: 640px) {
+  .slide {
+    flex: 0 0 100%;
   }
 
-  .feedback-container h1 {
-    font-size: 2.5rem;
-    text-align: center;
+  .carouselWrapper {
+    padding: 0 2.5rem;
   }
 
-  .feedback-wrapper {
-    width: 90vw;
-  }
-
-  .feedback-slide .box {
-    width: 90vw; /* Match wrapper */
-    height: auto;
-    padding: 20px;
-    margin: 0;
-  }
-
-  .feedback-slide .box h4 {
-    margin-left: 0;
-    text-align: center;
-    font-size: 1.2rem;
-  }
-
-  .feedback-slide .box p {
-    font-size: 1rem;
-  }
-  
-  .carousel-btn {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .prev-btn {
-    left: -10px;
-  }
-  
-  .next-btn {
-    right: -10px;
+  .title {
+    font-size: 2rem;
   }
 }
