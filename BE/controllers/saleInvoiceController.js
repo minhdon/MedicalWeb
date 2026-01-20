@@ -214,6 +214,54 @@ export const getAllOrders = async (req, res) => {
     }
 };
 
+// Get Order By ID (for Invoice display)
+export const getOrderById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const order = await SaleInvoice.findById(id)
+            .populate('userId', 'fullName phoneNum address email')
+            .populate('statusId', 'statusName')
+            .populate('warehouseId', 'warehouseName');
+
+        if (!order) {
+            return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+        }
+
+        // Get order items
+        const details = await SaleInvoiceDetail.find({ saleInvoiceId: id })
+            .populate('productId', 'productName unit');
+
+        const items = details.map(d => ({
+            productId: d.productId?._id,
+            productName: d.productId?.productName || 'Sản phẩm',
+            quantity: d.quantity,
+            unit: d.unit || d.productId?.unit || 'Đơn vị',
+            unitPrice: d.unitPrice,
+            totalPrice: d.totalPrice
+        }));
+
+        res.status(200).json({
+            _id: order._id,
+            customerId: order.userId,
+            customerName: order.userId?.fullName || 'Khách hàng',
+            customerPhone: order.userId?.phoneNum || '',
+            customerAddress: order.shippingAddress || order.userId?.address || '',
+            details: items,
+            totalAmount: order.totalAmount,
+            paymentMethod: order.paymentMethod || 'COD',
+            paymentStatus: order.paymentStatus || 'pending',
+            status: order.statusId?.statusName || 'Pending',
+            vnpayTransactionNo: order.vnpayTransactionNo || null,
+            vnpayPayDate: order.vnpayPayDate || null,
+            createdAt: order.createdAt
+        });
+    } catch (error) {
+        console.error("Get Order By ID Error:", error);
+        res.status(500).json({ message: 'Lỗi lấy thông tin đơn hàng' });
+    }
+};
+
 // Helper: Restore Stock for Order
 export const restoreStockForOrder = async (orderId, session) => {
     // Find order details

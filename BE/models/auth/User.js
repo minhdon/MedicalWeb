@@ -10,7 +10,8 @@ const userSchema = new mongoose.Schema({
     email: { type: String },
     DoB: { type: Date },
     phoneNum: { type: String },
-    sex: { type: Boolean }
+    sex: { type: Boolean },
+    isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 export const User = mongoose.model('User', userSchema)

@@ -3,7 +3,7 @@
  */
 
 import express from 'express';
-import { createVnpayUrl, vnpayIPN, vnpayReturn, queryVnpayTransaction } from '../controllers/paymentController.js';
+import { createVnpayUrl, vnpayIPN, vnpayReturn, queryVnpayTransaction, simulatePaymentSuccess } from '../controllers/paymentController.js';
 
 const router = express.Router();
 
@@ -18,5 +18,8 @@ router.get('/vnpay-return', vnpayReturn);
 
 // Query VNPay Transaction Status (Query DR)
 router.get('/query-transaction/:orderId', queryVnpayTransaction);
+
+// Simulate Payment Success (for demo/testing only)
+router.post('/simulate-success/:orderId', simulatePaymentSuccess);
 
 export default router;

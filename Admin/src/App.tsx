@@ -14,6 +14,7 @@ import Branches from "./pages/Branches";
 import Transfers from "./pages/Transfers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Staff from "./pages/Staff";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const AppRoutes = () => (
     <Route path="/customers" element={<Customers />} />
     <Route path="/branches" element={<Branches />} />
     <Route path="/transfers" element={<Transfers />} />
+    <Route path="/staff" element={<Staff />} />
     <Route path="/reports" element={<Reports />} />
     <Route path="/settings" element={<Settings />} />
     <Route path="*" element={<NotFound />} />

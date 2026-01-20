@@ -198,52 +198,70 @@ export default function Products() {
   };
 
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.category || !formData.price) {
       toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
       return;
     }
 
-    const now = new Date().toISOString();
+    try {
+      if (editingMedicine) {
+        // Update existing product via API
+        const res = await fetch(`http://127.0.0.1:3000/api/product/${editingMedicine.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productName: formData.name,
+            productDesc: formData.description,
+            ingredients: formData.ingredients,
+            usage: formData.usage,
+            preservation: formData.preservation,
+            sideEffects: formData.sideEffects,
+            precautions: formData.precautions,
+            origin: formData.origin,
+            brand: formData.brand,
+            price: parseFloat(formData.price),
+            unit: formData.unit,
+            variants: variants,
+          }),
+        });
 
-    if (editingMedicine) {
-      setMedicines((prev) =>
-        prev.map((m) =>
-          m.id === editingMedicine.id
-            ? {
-              ...m,
-              ...formData,
-              price: parseFloat(formData.price),
-              costPrice: parseFloat(formData.costPrice) || 0,
-              updatedAt: now,
-              variants: variants,
-            }
-            : m
-        )
-      );
-      toast.success('Đã cập nhật sản phẩm thành công');
-    } else {
-      const newMedicine: Medicine = {
-        id: Date.now().toString(),
-        name: formData.name,
-        description: formData.description,
-        category: formData.category,
-        price: parseFloat(formData.price),
-        costPrice: parseFloat(formData.costPrice) || 0,
-        stock: 0, // Default to 0, managed by warehouse
-        unit: formData.unit,
-        manufacturer: formData.manufacturer,
-        requiresPrescription: formData.requiresPrescription,
-        createdAt: now,
-        updatedAt: now,
-        variants: variants,
-      };
-      setMedicines((prev) => [newMedicine, ...prev]);
-      toast.success('Đã thêm sản phẩm mới thành công');
+        const data = await res.json();
+        if (res.ok) {
+          toast.success('Đã cập nhật sản phẩm thành công');
+          fetchProducts(currentPage, searchTerm); // Refresh from server
+        } else {
+          toast.error(data.message || 'Lỗi cập nhật sản phẩm');
+          return;
+        }
+      } else {
+        // Create new product - just update local state for now (no create API yet)
+        const now = new Date().toISOString();
+        const newMedicine: Medicine = {
+          id: Date.now().toString(),
+          name: formData.name,
+          description: formData.description,
+          category: formData.category,
+          price: parseFloat(formData.price),
+          costPrice: parseFloat(formData.costPrice) || 0,
+          stock: 0,
+          unit: formData.unit,
+          manufacturer: formData.manufacturer,
+          requiresPrescription: formData.requiresPrescription,
+          createdAt: now,
+          updatedAt: now,
+          variants: variants,
+        };
+        setMedicines((prev) => [newMedicine, ...prev]);
+        toast.success('Đã thêm sản phẩm mới thành công (local only)');
+      }
+
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error(error);
+      toast.error('Lỗi kết nối server');
     }
-
-    setIsDialogOpen(false);
-    resetForm();
   };
 
   const handleDelete = (id: string) => {

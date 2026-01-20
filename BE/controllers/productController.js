@@ -213,6 +213,70 @@ export const getProductById = async (req, res) => {
     }
 }
 
+/**
+ * Update Product
+ * PUT /api/product/:id
+ */
+export const updateProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            productName,
+            productDesc,
+            ingredients,
+            usage,
+            preservation,
+            sideEffects,
+            precautions,
+            origin,
+            brand,
+            price,
+            unit,
+            variants,
+            categoryId,
+            manufacturerId,
+            status
+        } = req.body;
+
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
+        }
+
+        // Update fields if provided
+        if (productName !== undefined) product.productName = productName;
+        if (productDesc !== undefined) product.productDesc = productDesc;
+        if (ingredients !== undefined) product.ingredients = ingredients;
+        if (usage !== undefined) product.usage = usage;
+        if (preservation !== undefined) product.preservation = preservation;
+        if (sideEffects !== undefined) product.sideEffects = sideEffects;
+        if (precautions !== undefined) product.precautions = precautions;
+        if (origin !== undefined) product.origin = origin;
+        if (brand !== undefined) product.brand = brand;
+        if (price !== undefined) product.price = price;
+        if (unit !== undefined) product.unit = unit;
+        if (variants !== undefined) product.variants = variants;
+        if (categoryId !== undefined) product.categoryId = categoryId;
+        if (manufacturerId !== undefined) product.manufacturerId = manufacturerId;
+        if (status !== undefined) product.status = status;
+
+        await product.save();
+
+        // Reload with populated fields
+        const updatedProduct = await Product.findById(id)
+            .populate('manufacturerId', 'manufacturerName')
+            .populate('categoryId', 'categoryName');
+
+        res.status(200).json({
+            message: 'Cập nhật sản phẩm thành công',
+            data: updatedProduct
+        });
+    } catch (error) {
+        console.error('Update Product Error:', error);
+        res.status(500).json({ message: error.message || 'Lỗi cập nhật sản phẩm' });
+    }
+}
+
 export const getProductBatches = async (req, res) => {
     try {
         const { id } = req.params;

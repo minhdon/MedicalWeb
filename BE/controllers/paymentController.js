@@ -452,3 +452,47 @@ export const queryVnpayTransaction = async (req, res) => {
         res.status(500).json({ message: 'Error querying transaction' });
     }
 };
+
+/**
+ * Simulate Payment Success (for demo/testing only)
+ * POST /api/payment/simulate-success/:orderId
+ * This is for demo purposes when VNPay sandbox QR doesn't work with real banking apps
+ */
+export const simulatePaymentSuccess = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+
+        const order = await SaleInvoice.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+        }
+
+        // Check if already paid
+        if (order.paymentStatus === 'paid') {
+            return res.status(400).json({ message: 'Đơn hàng đã được thanh toán' });
+        }
+
+        // Update order to paid
+        order.paymentStatus = 'paid';
+        order.paymentMethod = 'VNPay (Demo)';
+        order.vnpayTransactionNo = 'DEMO_' + Date.now();
+        order.vnpayPayDate = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+
+        // Update status to Confirmed
+        const confirmedStatus = await OrderStatus.findOne({ statusName: 'Confirmed' });
+        if (confirmedStatus) {
+            order.statusId = confirmedStatus._id;
+        }
+
+        await order.save();
+
+        res.status(200).json({
+            message: 'Thanh toán demo thành công!',
+            orderId: order._id,
+            redirectUrl: `http://localhost:5173/payment-result?status=success&orderId=${orderId}`
+        });
+    } catch (error) {
+        console.error('Simulate Payment Error:', error);
+        res.status(500).json({ message: 'Lỗi giả lập thanh toán' });
+    }
+};

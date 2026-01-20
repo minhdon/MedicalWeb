@@ -11,6 +11,7 @@ import {
   Pill,
   ArrowLeftRight,
   PackageSearch,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Khách hàng', href: '/customers', icon: Users },
   { name: 'Chi nhánh', href: '/branches', icon: Building2 },
   { name: 'Chuyển kho', href: '/transfers', icon: ArrowLeftRight },
+  { name: 'Nhân viên', href: '/staff', icon: UserCog },
   { name: 'Báo cáo', href: '/reports', icon: FileText },
   { name: 'Cài đặt', href: '/settings', icon: Settings },
 ];
