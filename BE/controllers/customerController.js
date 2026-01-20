@@ -215,3 +215,32 @@ export const deleteCustomer = async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi xóa khách hàng: ' + error.message });
     }
 };
+
+// Reset customer password (Admin function)
+export const resetCustomerPassword = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newPassword } = req.body;
+
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự' });
+        }
+
+        const customer = await User.findById(id);
+        if (!customer) {
+            return res.status(404).json({ message: 'Khách hàng không tồn tại' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        customer.passWord = hashedPassword;
+        await customer.save();
+
+        res.status(200).json({ message: 'Đặt lại mật khẩu thành công' });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ message: 'Lỗi khi đặt lại mật khẩu' });
+    }
+};
+

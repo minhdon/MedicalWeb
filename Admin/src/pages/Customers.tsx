@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, Pencil, Trash2, Phone, Mail, MapPin } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Phone, Mail, MapPin, Key } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Customers() {
@@ -33,7 +33,10 @@ export default function Customers() {
     phone: '',
     email: '',
     address: '',
+    password: '',
   });
+  const [resetPasswordId, setResetPasswordId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -72,7 +75,7 @@ export default function Customers() {
   );
 
   const resetForm = () => {
-    setFormData({ name: '', phone: '', email: '', address: '' });
+    setFormData({ name: '', phone: '', email: '', address: '', password: '' });
     setEditingCustomer(null);
   };
 
@@ -83,6 +86,7 @@ export default function Customers() {
       phone: customer.phone,
       email: customer.email,
       address: customer.address,
+      password: '',
     });
     setIsDialogOpen(true);
   };
@@ -115,7 +119,13 @@ export default function Customers() {
         const res = await fetch('http://127.0.0.1:3000/api/customer/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
+          body: JSON.stringify({
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            address: formData.address,
+            password: formData.password || undefined
+          })
         });
 
         const data = await res.json().catch(() => ({}));
@@ -161,6 +171,35 @@ export default function Customers() {
       toast.error('Lỗi kết nối khi xóa khách hàng');
     } finally {
       setDeleteId(null);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordId || !newPassword) return;
+
+    if (newPassword.length < 6) {
+      toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://127.0.0.1:3000/api/customer/${resetPasswordId}/reset-password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword })
+      });
+
+      if (res.ok) {
+        toast.success('Đặt lại mật khẩu thành công');
+      } else {
+        const data = await res.json();
+        toast.error(data.message || 'Lỗi đặt lại mật khẩu');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối');
+    } finally {
+      setResetPasswordId(null);
+      setNewPassword('');
     }
   };
 
@@ -253,10 +292,13 @@ export default function Customers() {
                     </p>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)} title="Chỉnh sửa">
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(customer.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => setResetPasswordId(customer.id)} title="Đặt lại mật khẩu">
+                      <Key className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(customer.id)} title="Xóa">
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
@@ -309,6 +351,36 @@ export default function Customers() {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDeleteId(null)}>Hủy</Button>
               <Button variant="destructive" onClick={confirmDelete}>Xóa</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={!!resetPasswordId} onOpenChange={(open) => {
+          if (!open) {
+            setResetPasswordId(null);
+            setNewPassword('');
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Đặt lại mật khẩu</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Mật khẩu mới</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setResetPasswordId(null)}>Hủy</Button>
+              <Button onClick={handleResetPassword}>Đặt lại mật khẩu</Button>
             </div>
           </DialogContent>
         </Dialog>

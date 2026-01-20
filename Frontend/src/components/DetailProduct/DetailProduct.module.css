@@ -438,3 +438,136 @@ body {
 .warningIcon {
   font-size: 18px;
 }
+
+/* ===== DETAILS WRAPPER (SCROLL-SPY LAYOUT) ===== */
+.detailsWrapper {
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 0 20px;
+}
+
+.detailsMainTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.detailsContainer {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+.detailsSidebar {
+  width: 200px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.sidebarItem {
+  display: block;
+  width: 100%;
+  padding: 15px 20px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #555;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.sidebarItem:hover {
+  background: #f8f9fa;
+  color: #00b894;
+}
+
+.sidebarItemActive {
+  background: #e8f8f5;
+  color: #00b894;
+  font-weight: 600;
+  border-left-color: #00b894;
+}
+
+.detailsContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.detailSection {
+  background: #fff;
+  border-radius: 10px;
+  padding: 25px 30px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.detailSectionActive {
+  border-color: #00b894;
+  box-shadow: 0 4px 15px rgba(0, 184, 148, 0.15);
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00b894;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.detailSectionActive .sectionTitle {
+  border-bottom-color: #00b894;
+}
+
+.sectionContent {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #444;
+  white-space: pre-line;
+}
+
+.noContent {
+  font-size: 14px;
+  color: #999;
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .detailsContainer {
+    flex-direction: column;
+  }
+
+  .detailsSidebar {
+    width: 100%;
+    position: static;
+    display: flex;
+    overflow-x: auto;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+
+  .sidebarItem {
+    padding: 12px 15px;
+    white-space: nowrap;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+  }
+
+  .sidebarItemActive {
+    border-bottom-color: #00b894;
+    border-left-color: transparent;
+  }
+}

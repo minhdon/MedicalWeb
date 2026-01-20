@@ -3,6 +3,7 @@ import styles from "./DetailProduct.module.css";
 import { useSearchParams, useNavigate } from "react-router";
 
 import { type ApiData, fetchProductById } from "../CallApi/CallApiProduct";
+import SideTable from "./SideTable";
 
 // Interface CartItem
 interface CartItem extends ApiData {
@@ -31,25 +32,11 @@ const TruckIcon = () => (
   </svg>
 );
 
-// Tab options
-type TabKey = 'ingredients' | 'usage' | 'dosage' | 'sideEffects' | 'precautions' | 'preservation';
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'ingredients', label: 'Thành phần' },
-  { key: 'usage', label: 'Công dụng' },
-  { key: 'dosage', label: 'Cách dùng' },
-  { key: 'sideEffects', label: 'Tác dụng phụ' },
-  { key: 'precautions', label: 'Lưu ý' },
-  { key: 'preservation', label: 'Bảo quản' },
-];
-
 const ProductDetail: React.FC = () => {
-  const [quantity, setQuantity] = useState(1);
   const [product, setProduct] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ unit: string, price: number } | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>('ingredients');
 
   const navigate = useNavigate();
   const [search] = useSearchParams();
@@ -108,31 +95,6 @@ const ProductDetail: React.FC = () => {
 
     localStorage.setItem("shoppingCart", JSON.stringify(cartItems));
     alert(`Đã thêm ${itemToAdd.unit} vào giỏ hàng!`);
-  };
-
-  // Get content for active tab
-  const getTabContent = () => {
-    if (!product) return <p style={{ color: '#666' }}>Chưa có dữ liệu.</p>;
-
-    const content: Record<TabKey, string | undefined> = {
-      ingredients: product.ingredients,
-      usage: product.usage,
-      dosage: product.dosage || product.usage, // fallback to usage if no dosage
-      sideEffects: product.sideEffects,
-      precautions: product.precautions,
-      preservation: product.preservation,
-    };
-
-    const text = content[activeTab];
-    if (!text) {
-      return <p style={{ color: '#888', fontStyle: 'italic' }}>Chưa có dữ liệu.</p>;
-    }
-
-    return (
-      <div style={{ whiteSpace: 'pre-line', lineHeight: 1.7, color: '#333' }}>
-        {text}
-      </div>
-    );
   };
 
   if (!productID) return <div>Invalid Product ID</div>;
@@ -264,26 +226,8 @@ const ProductDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Product Details Tabs Section */}
-      <div className={styles.tabsSection}>
-        <div className={styles.tabsSidebar}>
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              className={`${styles.tabButton} ${activeTab === tab.key ? styles.tabButtonActive : ''}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className={styles.tabContent}>
-          <h2 className={styles.tabContentTitle}>
-            {TABS.find(t => t.key === activeTab)?.label} của {product.productName}
-          </h2>
-          {getTabContent()}
-        </div>
-      </div>
+      {/* Product Details with Sidebar - Using SideTable Component */}
+      <SideTable product={product} />
 
       {/* Warning Note */}
       <div className={styles.warningNote}>

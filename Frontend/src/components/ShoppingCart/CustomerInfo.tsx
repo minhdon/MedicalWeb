@@ -40,9 +40,13 @@ const CustomerInfo: React.FC = () => {
 
   const [provinceCode, setProvinceCode] = useState("");
   const [districtCode, setDistrictCode] = useState("");
-  const [wardCode, setWardCode] = useState(""); // Thêm state Ward
-  const [specificAddress, setSpecificAddress] = useState(""); // Thêm state Address
+  const [wardCode, setWardCode] = useState("");
+  const [specificAddress, setSpecificAddress] = useState("");
   const [note, setNote] = useState("");
+
+  // Phone Lookup State
+  const [isSearching, setIsSearching] = useState(false);
+  const [foundCustomer, setFoundCustomer] = useState<{ id: string; name: string; phone: string; email?: string } | null>(null);
 
   // UI State
   const [isValueOfProvinceSelected, setIsValueOfProvinceSelected] =
@@ -65,6 +69,38 @@ const CustomerInfo: React.FC = () => {
   useEffect(() => {
     syncProvincesToStorage();
   }, []);
+
+  // Search customer by phone
+  const searchCustomerByPhone = async (phoneNumber: string) => {
+    if (phoneNumber.length < 10) {
+      setFoundCustomer(null);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:3000/api/customer/search?phone=${phoneNumber}`
+      );
+      const data = await response.json();
+
+      if (data.found && data.customer) {
+        setFoundCustomer(data.customer);
+        // Auto-fill form
+        setSenderName(data.customer.name || "");
+        if (data.customer.email) setSenderEmail(data.customer.email);
+        // Also set as recipient by default
+        setRecipientName(data.customer.name || "");
+      } else {
+        setFoundCustomer(null);
+      }
+    } catch (error) {
+      console.error("Error searching customer:", error);
+      setFoundCustomer(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   // --- 2. Logic kiểm tra toàn bộ Form (Core Logic) ---
   useEffect(() => {
@@ -194,23 +230,62 @@ const CustomerInfo: React.FC = () => {
               placeholder="Họ và tên người đặt"
               value={senderName}
               onChange={(e) => setSenderName(e.target.value)}
+              style={{
+                backgroundColor: foundCustomer ? "#f5f5f5" : undefined
+              }}
             />
           </div>
 
           <div className={styles.field}>
-            <input
-              type="tel"
-              className={styles.input}
-              placeholder="Số điện thoại"
-              value={senderPhone}
-              onBlur={(e) => validateSenderPhone(e.target.value)}
-              onChange={(e) => {
-                setSenderPhone(e.target.value);
-                if (senderPhoneError) setSenderPhoneError("");
-              }}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                type="tel"
+                className={styles.input}
+                placeholder="Số điện thoại"
+                value={senderPhone}
+                onBlur={(e) => {
+                  validateSenderPhone(e.target.value);
+                  searchCustomerByPhone(e.target.value);
+                }}
+                onChange={(e) => {
+                  setSenderPhone(e.target.value);
+                  if (senderPhoneError) setSenderPhoneError("");
+                  // Auto search when 10+ digits
+                  if (e.target.value.length >= 10) {
+                    searchCustomerByPhone(e.target.value);
+                  }
+                }}
+                style={{
+                  border: foundCustomer ? "2px solid #4caf50" : undefined
+                }}
+              />
+              {isSearching && (
+                <span style={{
+                  position: "absolute",
+                  right: "12px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "#666",
+                  fontSize: "12px"
+                }}>
+                  Đang tìm...
+                </span>
+              )}
+            </div>
             {senderPhoneError && (
               <div className={styles.error}>{senderPhoneError}</div>
+            )}
+            {foundCustomer && (
+              <div style={{
+                backgroundColor: "#e8f5e9",
+                padding: "8px 12px",
+                borderRadius: "4px",
+                marginTop: "8px",
+                fontSize: "13px",
+                color: "#2e7d32"
+              }}>
+                ✅ Tìm thấy: <strong>{foundCustomer.name}</strong>
+              </div>
             )}
           </div>
         </div>
