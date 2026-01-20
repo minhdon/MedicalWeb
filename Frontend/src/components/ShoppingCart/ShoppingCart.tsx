@@ -90,6 +90,7 @@ const ShoppingCart: React.FC = () => {
   const products = useContext(paymentPerProductContext);
   const [isOrdering, setIsOrdering] = useState(false);
   const [validationError, setValidationError] = useState<string>(""); // NEW: For inline validation
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'VNPay' | 'Tiền mặt' | 'Chuyển khoản'>('COD'); // Payment method selector
 
   // FIX: Use _id AND unit to identify item
   const handleChangeQuantity = (id: string, unit: string, count: number) => {
@@ -193,7 +194,53 @@ const ShoppingCart: React.FC = () => {
         orderPayload.isInStoreSale = true; // Flag to indicate in-store sale
       }
 
+      // Include payment method in order
+      let finalPaymentMethod: string = paymentMethod;
+
+      // Logic xử lý phương thức thanh toán cho Staff
+      if (isStaff) {
+        if (paymentMethod === 'Chuyển khoản') {
+          // Nếu chọn Chuyển khoản -> Chuyển thành VNPay để redirect qua cổng thanh toán
+          finalPaymentMethod = 'VNPay';
+        }
+      }
+
+      orderPayload.customerInfo = {
+        ...customerData,
+        paymentMethod: finalPaymentMethod
+      };
+
       const result = await createOrderAPI(orderPayload);
+
+      // VS: Nếu method là VNPay (do khách chọn hoặc do Staff chọn Chuyển khoản) -> Redirect
+      if (finalPaymentMethod === 'VNPay') {
+        try {
+          const vnpayResponse = await fetch('http://127.0.0.1:3000/api/payment/create-vnpay-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: result.invoiceId,
+              amount: result.totalBill,
+              orderInfo: `Thanh toan don hang ${result.invoiceId} (POS)`
+            })
+          });
+          const vnpayData = await vnpayResponse.json();
+
+          if (vnpayData.paymentUrl) {
+            // Clear cart
+            const remainingItems = cartItems.filter(item => !item.status);
+            setCartItems(remainingItems);
+            localStorage.setItem(storageKey, JSON.stringify(remainingItems));
+
+            // Redirect
+            window.location.href = vnpayData.paymentUrl;
+            return;
+          }
+        } catch (vnpayErr) {
+          console.error('VNPay error:', vnpayErr);
+          alert('Lỗi kết nối VNPay.');
+        }
+      }
 
       const successMsg = isStaff
         ? `Bán hàng thành công! Mã đơn: ${result.invoiceId}\nTổng tiền: ${result.totalBill?.toLocaleString()}đ\nChi nhánh: ${user?.warehouse?.name || 'N/A'}`
@@ -407,6 +454,111 @@ const ShoppingCart: React.FC = () => {
             </div>
           </div>
 
+          {/* Payment Method Selector */}
+          <div style={{
+            marginBottom: '16px',
+            padding: '16px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px'
+          }}>
+            <div style={{ marginBottom: '10px', fontWeight: '600', color: '#333' }}>
+              Phương thức thanh toán
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              {isStaff ? (
+                <>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: paymentMethod === 'Tiền mặt' ? '2px solid #28a745' : '2px solid #ddd',
+                    backgroundColor: paymentMethod === 'Tiền mặt' ? '#e8f5e9' : 'white',
+                    flex: 1
+                  }}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="Tiền mặt"
+                      checked={paymentMethod === 'Tiền mặt'}
+                      onChange={() => setPaymentMethod('Tiền mặt')}
+                    />
+                    <span>💵 Tiền mặt</span>
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: paymentMethod === 'Chuyển khoản' ? '2px solid #0066cc' : '2px solid #ddd',
+                    backgroundColor: paymentMethod === 'Chuyển khoản' ? '#e3f2fd' : 'white',
+                    flex: 1
+                  }}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="Chuyển khoản"
+                      checked={paymentMethod === 'Chuyển khoản'}
+                      onChange={() => setPaymentMethod('Chuyển khoản')}
+                    />
+                    <span>💳 Chuyển khoản (Banking)</span>
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: paymentMethod === 'COD' ? '2px solid #28a745' : '2px solid #ddd',
+                    backgroundColor: paymentMethod === 'COD' ? '#e8f5e9' : 'white',
+                    flex: 1
+                  }}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="COD"
+                      checked={paymentMethod === 'COD'}
+                      onChange={() => setPaymentMethod('COD')}
+                    />
+                    <span>💵 COD (Thanh toán khi nhận)</span>
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: paymentMethod === 'VNPay' ? '2px solid #0066cc' : '2px solid #ddd',
+                    backgroundColor: paymentMethod === 'VNPay' ? '#e3f2fd' : 'white',
+                    flex: 1
+                  }}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="VNPay"
+                      checked={paymentMethod === 'VNPay'}
+                      onChange={() => setPaymentMethod('VNPay')}
+                    />
+                    <span>💳 VNPay</span>
+                  </label>
+                </>
+              )}
+            </div>
+
+            {/* Banking QR Code Display Removed as we redirect to VNPay now */}
+          </div>
+
           {/* Validation Error Message */}
           {validationError && (
             <div style={{
@@ -431,7 +583,16 @@ const ShoppingCart: React.FC = () => {
               cursor: isOrdering ? 'wait' : cartItems.filter(i => i.status).length === 0 ? 'not-allowed' : 'pointer',
               backgroundColor: isInfo && cartItems.filter(i => i.status).length > 0 ? '#28a745' : '#1d48ba'
             }}
-            onClick={handleCheckout}
+            onClick={(e) => {
+              console.log('🛒 CHECKOUT CLICKED', {
+                isOrdering,
+                isInfo,
+                selectedCount: cartItems.filter(i => i.status).length,
+                isStaff,
+                disabled: isOrdering || cartItems.filter(i => i.status).length === 0
+              });
+              handleCheckout();
+            }}
           >
             {isOrdering
               ? 'Đang xử lý...'

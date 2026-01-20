@@ -49,6 +49,15 @@ export default function Orders() {
         const data = await res.json();
         // Map data
         if (Array.isArray(data)) {
+          // Map backend status to frontend status key
+          const statusMap: Record<string, Order['status']> = {
+            'pending': 'pending',
+            'confirmed': 'confirmed',
+            'processing': 'processing',
+            'completed': 'delivered',
+            'cancelled': 'cancelled'
+          };
+
           const mappedOrders: Order[] = data.map((o: any) => ({
             id: o.id,
             customerId: o.id, // Fallback ID
@@ -57,7 +66,7 @@ export default function Orders() {
             customerAddress: o.customerAddress,
             items: o.items || [], // Use items from API
             total: o.total,
-            status: (o.status.toLowerCase() === 'pending' ? 'pending' : 'confirmed') as Order['status'], // Cast to enum
+            status: statusMap[o.status?.toLowerCase()] || 'pending',
             deliveryBranch: o.deliveryBranch,
             paymentMethod: 'cash', // Default or fetch
             paymentStatus: 'pending', // Default

@@ -1,0 +1,118 @@
+.container {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.card {
+    background: white;
+    border-radius: 16px;
+    padding: 3rem;
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.iconSuccess,
+.iconFailed,
+.iconError {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: bold;
+    margin: 0 auto 1.5rem;
+}
+
+.iconSuccess {
+    background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+    color: white;
+}
+
+.iconFailed {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+}
+
+.iconError {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: white;
+}
+
+.titleSuccess {
+    color: #00b894;
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+}
+
+.titleFailed {
+    color: #e74c3c;
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+}
+
+.titleError {
+    color: #e67e22;
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+}
+
+.message {
+    color: #2d3436;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.subMessage {
+    color: #636e72;
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+}
+
+.actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btnPrimary {
+    background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+    color: white;
+    border: none;
+    padding: 0.875rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btnPrimary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 184, 148, 0.4);
+}
+
+.btnSecondary {
+    background: white;
+    color: #2d3436;
+    border: 2px solid #dfe6e9;
+    padding: 0.875rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.btnSecondary:hover {
+    border-color: #00b894;
+    background: #f8f9fa;
+}

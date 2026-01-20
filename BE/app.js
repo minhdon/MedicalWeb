@@ -46,6 +46,9 @@ app.use('/api/warehouse', warehouseRoutes)
 import transferRoutes from './routes/transfer.js'
 app.use('/api/transfer', transferRoutes)
 
+import paymentRoutes from './routes/payment.js'
+app.use('/api/payment', paymentRoutes)
+
 app.use(errorHandler)
 // Start server
 app.listen(PORT, () => {

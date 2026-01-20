@@ -11,8 +11,13 @@ const saleInvoiceSchema = new mongoose.Schema({
     // New Fields for Order Management
     totalAmount: { type: Number, default: 0 },
     shippingAddress: { type: String },
-    paymentMethod: { type: String, enum: ['COD', 'Banking', 'Tiền mặt'], default: 'COD' },
-    note: { type: String }
+    paymentMethod: { type: String, enum: ['COD', 'Banking', 'Tiền mặt', 'VNPay'], default: 'COD' },
+    note: { type: String },
+
+    // VNPay Payment Fields
+    paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+    vnpayTransactionNo: { type: String },
+    vnpayPayDate: { type: String }
 }, { timestamps: true });
 
 export const SaleInvoice = mongoose.model('SaleInvoice', saleInvoiceSchema)

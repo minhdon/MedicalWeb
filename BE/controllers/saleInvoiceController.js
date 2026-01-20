@@ -41,7 +41,10 @@ export const createOrder = async (req, res) => {
         }
 
         // 2. Find Order Status (Pending for online, Confirmed for in-store)
-        const statusName = isInStoreSale ? 'Confirmed' : 'Pending';
+        // EXCEPTION: If in-store but paying via VNPay, set to Pending until payment confirms
+        const isPendingPayment = !isInStoreSale || (isInStoreSale && (customerInfo.paymentMethod === 'VNPay' || req.body.paymentMethod === 'VNPay'));
+        const statusName = isPendingPayment ? 'Pending' : 'Confirmed';
+
         let status = await OrderStatus.findOne({ statusName: statusName }).session(session);
         if (!status) {
             // Create if not exists (seed fallback)
@@ -211,6 +214,31 @@ export const getAllOrders = async (req, res) => {
     }
 };
 
+// Helper: Restore Stock for Order
+export const restoreStockForOrder = async (orderId, session) => {
+    // Find order details
+    const details = await SaleInvoiceDetail.find({ saleInvoiceId: orderId }).session(session);
+
+    let restoredCount = 0;
+
+    for (const detail of details) {
+        // Find batch and check if it still exists
+        const batch = await ProductBatch.findById(detail.batchId).session(session);
+
+        if (batch) {
+            batch.remainingQuantity += detail.quantity;
+            await batch.save({ session });
+            restoredCount += detail.quantity;
+        } else {
+            // Log warning if batch not found (rare case)
+            console.warn(`Cannot restore stock: Batch ${detail.batchId} not found for detail ${detail._id}`);
+        }
+    }
+
+    console.log(`Restored ${restoredCount} items for order ${orderId}`);
+    return restoredCount;
+};
+
 // Update Order (for Admin - assign branch, change status)
 export const updateOrder = async (req, res) => {
     try {
@@ -218,6 +246,11 @@ export const updateOrder = async (req, res) => {
         const { warehouseId, statusName, note } = req.body;
 
         const updateData = {};
+        const order = await SaleInvoice.findById(id);
+
+        if (!order) {
+            return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+        }
 
         // Update warehouse (branch assignment)
         if (warehouseId) {
@@ -234,6 +267,26 @@ export const updateOrder = async (req, res) => {
             } else {
                 updateData.statusId = status._id;
             }
+
+            // CHECK LOGIC: If changing to 'Cancelled', restore stock
+            const cancelledStatus = await OrderStatus.findOne({ statusName: 'Cancelled' });
+
+            // If new status is Cancelled AND current status is NOT Cancelled
+            if (statusName === 'Cancelled' && order.statusId?.toString() !== cancelledStatus?._id?.toString()) {
+                // Start a session for atomic operation if possible, but here we might just run it
+                // Ideally we wrap the whole controller in a transaction, but for now we follow existing pattern or add minimalist transaction
+                const session = await mongoose.startSession();
+                session.startTransaction();
+                try {
+                    await restoreStockForOrder(id, session);
+                    await session.commitTransaction();
+                } catch (err) {
+                    await session.abortTransaction();
+                    throw err;
+                } finally {
+                    session.endSession();
+                }
+            }
         }
 
         // Update note
@@ -241,6 +294,7 @@ export const updateOrder = async (req, res) => {
             updateData.note = note;
         }
 
+        // Apply updates
         const updatedOrder = await SaleInvoice.findByIdAndUpdate(
             id,
             updateData,
@@ -248,10 +302,6 @@ export const updateOrder = async (req, res) => {
         )
             .populate('warehouseId', 'warehouseName')
             .populate('statusId', 'statusName');
-
-        if (!updatedOrder) {
-            return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
-        }
 
         res.status(200).json({
             message: 'Cập nhật đơn hàng thành công',
@@ -275,19 +325,33 @@ export const deleteOrder = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Find order details to restore stock
-        const details = await SaleInvoiceDetail.find({ saleInvoiceId: id }).session(session);
+        // Find the order first to check its status
+        const order = await SaleInvoice.findById(id).populate('statusId', 'statusName').session(session);
+        if (!order) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+        }
+
+        // Check if order was already cancelled (stock already restored)
+        const isAlreadyCancelled = order.statusId?.statusName === 'Cancelled';
 
         let restoredQuantity = 0;
 
-        // Restore stock to batches
-        for (const detail of details) {
-            await ProductBatch.updateOne(
-                { _id: detail.batchId },
-                { $inc: { remainingQuantity: detail.quantity } },
-                { session }
-            );
-            restoredQuantity += detail.quantity;
+        // Only restore stock if order was NOT cancelled
+        if (!isAlreadyCancelled) {
+            // Find order details to restore stock
+            const details = await SaleInvoiceDetail.find({ saleInvoiceId: id }).session(session);
+
+            // Restore stock to batches
+            for (const detail of details) {
+                await ProductBatch.updateOne(
+                    { _id: detail.batchId },
+                    { $inc: { remainingQuantity: detail.quantity } },
+                    { session }
+                );
+                restoredQuantity += detail.quantity;
+            }
         }
 
         // Delete order details
@@ -298,10 +362,14 @@ export const deleteOrder = async (req, res) => {
 
         await session.commitTransaction();
 
-        res.status(200).json({
-            message: restoredQuantity > 0
+        const message = isAlreadyCancelled
+            ? 'Đã xóa đơn hàng (đã hủy trước đó, không hoàn kho)'
+            : (restoredQuantity > 0
                 ? `Đã xóa đơn hàng và hoàn trả ${restoredQuantity} sản phẩm về kho`
-                : 'Đã xóa đơn hàng',
+                : 'Đã xóa đơn hàng');
+
+        res.status(200).json({
+            message,
             restoredQuantity
         });
     } catch (error) {
