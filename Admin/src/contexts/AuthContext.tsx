@@ -66,6 +66,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const data = await res.json();
 
             if (res.ok && data.token) {
+                // Check if user role is allowed to access Admin panel
+                const allowedRoles = ['Admin', 'WarehouseStaff'];
+                const userRole = data.user?.role;
+
+                if (!allowedRoles.includes(userRole)) {
+                    return {
+                        success: false,
+                        message: 'Tài khoản nhân viên chi nhánh không được phép truy cập trang quản lý. Vui lòng sử dụng website bán hàng.'
+                    };
+                }
+
                 setToken(data.token);
                 setUser(data.user);
                 localStorage.setItem('token', data.token);

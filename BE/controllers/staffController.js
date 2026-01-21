@@ -12,9 +12,9 @@ import { Warehouse } from '../models/warehouse/Warehouse.js';
  */
 export const getAllStaff = async (req, res) => {
     try {
-        // Find roles for Admin and Staff
+        // Find roles for Admin, Staff, and WarehouseStaff
         const staffRoles = await Role.find({
-            roleName: { $in: ['Admin', 'Staff'] }
+            roleName: { $in: ['Admin', 'Staff', 'WarehouseStaff'] }
         });
         const roleIds = staffRoles.map(r => r._id);
 

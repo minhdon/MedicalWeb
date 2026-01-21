@@ -4,19 +4,26 @@ import { SaleInvoice } from '../models/saleInvoice/SaleInvoice.js';
 import bcrypt from 'bcrypt';
 
 // Get all customers with stats
+// Customers = all users except Admin, Staff, WarehouseStaff
 export const getAllCustomers = async (req, res) => {
     try {
-        const customerRole = await Role.findOne({ roleName: 'Customer' });
-
-        // If role doesn't exist, try finding 'Khách hàng' or just return empty
-        if (!customerRole) {
-            // Create role if not exists? Or just return empty.
-            // Let's assume for now we return empty or try to find users who might be customers
-            return res.status(200).json({ data: [] });
-        }
+        // Find staff/admin roles to exclude
+        const staffRoles = await Role.find({
+            roleName: { $in: ['Admin', 'Staff', 'WarehouseStaff'] }
+        });
+        const staffRoleIds = staffRoles.map(r => r._id);
 
         const customers = await User.aggregate([
-            { $match: { roleId: customerRole._id } },
+            // Exclude staff/admin roles
+            {
+                $match: {
+                    $or: [
+                        { roleId: { $nin: staffRoleIds } },
+                        { roleId: null },
+                        { roleId: { $exists: false } }
+                    ]
+                }
+            },
             {
                 $lookup: {
                     from: 'saleinvoices',
@@ -35,6 +42,7 @@ export const getAllCustomers = async (req, res) => {
                 $project: {
                     _id: 1,
                     fullName: 1,
+                    userName: 1,
                     phoneNum: 1,
                     email: 1,
                     address: 1,

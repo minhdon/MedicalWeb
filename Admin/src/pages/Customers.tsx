@@ -323,6 +323,17 @@ export default function Customers() {
                   )}
                 </div>
 
+                {/* Account Info Section */}
+                <div className="mt-3 pt-3 border-t border-dashed">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Tài khoản đăng nhập:</p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Key className="h-3 w-3 text-primary" />
+                    <span className="font-mono text-primary">{customer.phone}</span>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="font-mono bg-muted px-1 rounded text-xs">123456</span>
+                  </div>
+                </div>
+
                 <div className="mt-4 pt-4 border-t flex justify-between text-sm">
                   <div>
                     <p className="text-muted-foreground">Tổng đơn hàng</p>

@@ -204,7 +204,8 @@ export const Header = () => {
             </>
           ) : (
             <button className={styles["btnLogin-popup"]} onClick={loginPageLink}>
-              Login
+              <i className="fa-solid fa-user"></i>
+              Đăng nhập
             </button>
           )}
           <button

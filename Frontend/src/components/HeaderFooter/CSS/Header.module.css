@@ -184,26 +184,59 @@ header {
   padding-left: 50px;
 }
 
-.navigation .btnLogin-popup {
-  width: 130px;
-  height: 50px;
-  background: transparent;
-  border: 2px solid #ccc;
-  /* outline:đường viền bao quanh phần tử */
+/* Modern Login Button Styles */
+.btnLogin-popup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  min-width: 120px;
+  height: 44px;
+  background: linear-gradient(135deg, #2b9474 0%, #1d6b54 100%);
+  border: none;
   outline: none;
-  border-radius: 6px;
-  font-size: 1.1em;
-  font-weight: bold;
-  margin-left: 40px;
-  transition: 0.5s;
-  color: #2b9474;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #ffffff;
   cursor: pointer;
   position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(43, 148, 116, 0.3);
+  transition: all 0.3s ease;
 }
 
-.navigation .btnLogin-popup:hover {
-  background: #2b9474;
-  color: #fff;
+.btnLogin-popup::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btnLogin-popup:hover {
+  background: linear-gradient(135deg, #34b88f 0%, #228a68 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(43, 148, 116, 0.4);
+}
+
+.btnLogin-popup:hover::before {
+  left: 100%;
+}
+
+.btnLogin-popup:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(43, 148, 116, 0.3);
+}
+
+/* Alternative style for navigation context */
+.navigation .btnLogin-popup {
+  margin-left: 40px;
 }
 
 .navigation .btnShoppingCart {

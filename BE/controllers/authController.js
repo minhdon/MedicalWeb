@@ -31,20 +31,33 @@ export const registerUser = async (req, res, next) => {
             });
         }
 
+        // Find or create Customer role
+        let customerRole = await Role.findOne({ roleName: 'Customer' });
+        if (!customerRole) {
+            customerRole = await Role.create({
+                roleName: 'Customer',
+                description: 'Khách hàng'
+            });
+        }
+
         const hashPassword = await bcrypt.hash(passWord, 10);
         const newUser = new User({
             userName,
             passWord: hashPassword,
             email,
             DoB,
-            phoneNum
+            phoneNum,
+            fullName: userName, // Set fullName same as userName initially
+            roleId: customerRole._id // Assign Customer role
         });
         await newUser.save();
 
         return res.status(200).json({
             message: 'Đăng ký tài khoản thành công!',
             user: {
-                userName: newUser.userName
+                userName: newUser.userName,
+                email: newUser.email,
+                role: 'Customer'
             }
         });
     } catch (error) {
@@ -63,8 +76,14 @@ export const loginUser = async (req, res, next) => {
             });
         }
 
-        // Populate role and warehouse info
-        const user = await User.findOne({ email })
+        // Find user by email, phone number, or username
+        const user = await User.findOne({
+            $or: [
+                { email: email },
+                { phoneNum: email },
+                { userName: email }
+            ]
+        })
             .populate('roleId', 'roleName')
             .populate('warehouseId', 'warehouseName address');
 

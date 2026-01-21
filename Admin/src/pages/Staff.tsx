@@ -516,7 +516,8 @@ export default function Staff() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nhân viên</TableHead>
-                                <TableHead>Email / SĐT</TableHead>
+                                <TableHead>Tài khoản đăng nhập</TableHead>
+                                <TableHead>SĐT</TableHead>
                                 <TableHead>Chi nhánh</TableHead>
                                 <TableHead>Vai trò</TableHead>
                                 <TableHead>Trạng thái</TableHead>
@@ -526,7 +527,7 @@ export default function Staff() {
                         <TableBody>
                             {filteredStaff.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                                         Chưa có nhân viên nào
                                     </TableCell>
                                 </TableRow>
@@ -535,11 +536,13 @@ export default function Staff() {
                                     <TableRow key={staff.id}>
                                         <TableCell>
                                             <div className="font-medium">{staff.fullName}</div>
-                                            <div className="text-sm text-muted-foreground">@{staff.userName}</div>
                                         </TableCell>
                                         <TableCell>
-                                            <div>{staff.email}</div>
-                                            <div className="text-sm text-muted-foreground">{staff.phoneNum}</div>
+                                            <div className="font-medium text-primary">{staff.email}</div>
+                                            <div className="text-xs text-muted-foreground">Mật khẩu: <span className="font-mono bg-muted px-1 rounded">123456</span></div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div>{staff.phoneNum || '-'}</div>
                                         </TableCell>
                                         <TableCell>
                                             {staff.warehouse?.name || (
