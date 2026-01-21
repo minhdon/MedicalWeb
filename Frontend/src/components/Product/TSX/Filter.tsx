@@ -1,8 +1,16 @@
 import React from "react";
 import styles from "../CSS/Filter.module.css";
 import { useSearchParams } from "react-router";
+import type { ApiData } from "../../CallApi/CallApiProduct";
+
 export const Filter = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const products = localStorage.getItem("products");
+  const productList: ApiData[] = products ? JSON.parse(products) : [];
+  const countries = [...new Set(productList.map((p) => p.origin))];
+  const brands = [...new Set(productList.map((p) => p.brand))];
+  const [countryFilter, setCountryFilter] = React.useState<string>("");
+  const [brandFilter, setBrandFilter] = React.useState<string>("");
 
   const handleMultiSelect = (key: string, value: string) => {
     setSearchParams((prev) => {
@@ -83,7 +91,10 @@ export const Filter = () => {
                   onChange={(e) =>
                     handlePriceSelect("100000", "300000", e.target.checked)
                   }
-                  checked={isPriceChecked("100000")}
+                  checked={
+                    isPriceChecked("100000") &&
+                    searchParams.get("maxPrice") === "300000"
+                  }
                 />{" "}
                 100.000đ - 300.000đ
               </label>
@@ -96,7 +107,9 @@ export const Filter = () => {
                   onChange={(e) =>
                     handlePriceSelect("500000", "Infinity", e.target.checked)
                   }
-                  checked={isPriceChecked("500000")}
+                  checked={
+                    isPriceChecked("500000") && !searchParams.has("maxPrice")
+                  }
                 />{" "}
                 Trên 500.000đ
               </label>
@@ -106,64 +119,69 @@ export const Filter = () => {
 
         <div className={styles["filter-group"]}>
           <h3>Thương hiệu</h3>
+          <input
+            type="text"
+            placeholder="Nhập tên thương hiệu"
+            className={styles["search-input"]}
+            onChange={(e) => setBrandFilter(e.target.value)}
+          />
           <ul>
-            <li>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={isChecked("brand", "duoc_hau_giang")}
-                  onChange={() => handleMultiSelect("brand", "duoc_hau_giang")}
-                />
-                Dược Hậu Giang
-              </label>
-            </li>
-            <li>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={isChecked("brand", "traphaco")}
-                  onChange={() => handleMultiSelect("brand", "traphaco")}
-                />
-                Traphaco
-              </label>
-            </li>
-            <li>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={isChecked("brand", "blackmores")}
-                  onChange={() => handleMultiSelect("brand", "blackmores")}
-                />
-                Blackmores
-              </label>
-            </li>
+            {brands
+              .filter(
+                (item) =>
+                  item &&
+                  item.toLowerCase().includes(brandFilter.toLowerCase()),
+              )
+              .map((item) => (
+                <li key={item}>
+                  {" "}
+                  {/* Key là bắt buộc, nên dùng giá trị duy nhất */}
+                  <label>
+                    <input
+                      type="checkbox"
+                      // Truyền value động vào hàm kiểm tra
+                      checked={isChecked("brand", item || "")}
+                      // Truyền value động vào hàm xử lý
+                      onChange={() => handleMultiSelect("brand", item || "")}
+                    />{" "}
+                    {item}
+                  </label>
+                </li>
+              ))}
           </ul>
         </div>
 
         {/* --- GROUP: QUỐC GIA --- */}
         <div className={styles["filter-group"]}>
           <h3>Nước sản xuất</h3>
+          <input
+            type="text"
+            placeholder="Nhập tên quốc gia"
+            onChange={(e) => setCountryFilter(e.target.value)}
+          />
           <ul>
-            <li>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={isChecked("country", "vietnam")}
-                  onChange={() => handleMultiSelect("country", "vietnam")}
-                />{" "}
-                Việt Nam
-              </label>
-            </li>
-            <li>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={isChecked("country", "usa")}
-                  onChange={() => handleMultiSelect("country", "usa")}
-                />{" "}
-                Mỹ
-              </label>
-            </li>
+            {countries
+              .filter(
+                (item) =>
+                  item &&
+                  item.toLowerCase().includes(countryFilter.toLowerCase()),
+              )
+              .map((item) => (
+                <li key={item}>
+                  {" "}
+                  {/* Key là bắt buộc, nên dùng giá trị duy nhất */}
+                  <label>
+                    <input
+                      type="checkbox"
+                      // Truyền value động vào hàm kiểm tra
+                      checked={isChecked("country", item || "")}
+                      // Truyền value động vào hàm xử lý
+                      onChange={() => handleMultiSelect("country", item || "")}
+                    />{" "}
+                    {item} {/* Hiển thị tên quốc gia */}
+                  </label>
+                </li>
+              ))}
           </ul>
         </div>
       </aside>

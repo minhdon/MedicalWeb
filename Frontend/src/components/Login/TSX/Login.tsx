@@ -20,8 +20,11 @@ export const Login = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const email = (form.elements.namedItem('emailLog') as HTMLInputElement).value;
-    const passWord = (form.elements.namedItem('passwordLog') as HTMLInputElement).value;
+    const email = (form.elements.namedItem("emailLog") as HTMLInputElement)
+      .value;
+    const passWord = (
+      form.elements.namedItem("passwordLog") as HTMLInputElement
+    ).value;
 
     try {
       const response = await authService.login({ email, passWord });
@@ -33,14 +36,20 @@ export const Login = () => {
       const token = response.data.token;
       login(userData, token);
 
-      console.log('Logged in as:', userData.role, userData.warehouse?.name || 'N/A');
+      console.log(
+        "Logged in as:",
+        userData.role,
+        userData.warehouse?.name || "N/A",
+      );
 
       // Redirect sau 1 giây
       setTimeout(() => {
-        window.location.href = '/';
+        window.location.href = "/";
+        localStorage.removeItem("shoppingCart");
+        localStorage.removeItem("buyNowCart");
       }, 1000);
     } catch (error: any) {
-      setMessage(error.response?.data?.message || 'Lỗi đăng nhập');
+      setMessage(error.response?.data?.message || "Lỗi đăng nhập");
       setIsError(true);
     }
   };
@@ -68,14 +77,16 @@ export const Login = () => {
                 Login to your account <a href="/">Medicare</a>
               </p>
               {message && (
-                <div style={{
-                  padding: '10px',
-                  marginBottom: '10px',
-                  borderRadius: '5px',
-                  backgroundColor: isError ? '#fee' : '#efe',
-                  color: isError ? '#c00' : '#0a0',
-                  textAlign: 'center'
-                }}>
+                <div
+                  style={{
+                    padding: "10px",
+                    marginBottom: "10px",
+                    borderRadius: "5px",
+                    backgroundColor: isError ? "#fee" : "#efe",
+                    color: isError ? "#c00" : "#0a0",
+                    textAlign: "center",
+                  }}
+                >
                   {message}
                 </div>
               )}

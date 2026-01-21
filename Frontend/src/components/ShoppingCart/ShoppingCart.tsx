@@ -6,6 +6,16 @@ import { createOrderAPI } from "../CallApi/CallApiSaleInvoice";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
 
+// Modal Types
+interface ModalState {
+  isOpen: boolean;
+  type: "confirm" | "success" | "error" | "info";
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 interface CartItem {
   _id: string; // Updated to _id
   id?: number; // Optional backward compatibility
@@ -86,11 +96,51 @@ const ShoppingCart: React.FC = () => {
     }
   }, [storageKey]); // Re-run when mode changes
 
+  // Helper to update cart and notify other components
+  const updateCartAndNotify = (newItems: CartItem[]) => {
+    setCartItems(newItems);
+    localStorage.setItem(storageKey, JSON.stringify(newItems));
+    // Dispatch custom event for Header to update cart count
+    if (storageKey === "shoppingCart") {
+      window.dispatchEvent(new CustomEvent("cartUpdated", { detail: newItems }));
+    }
+  };
+
   const { isInfo, customerData } = useContext(IsInfoContext);
   const products = useContext(paymentPerProductContext);
   const [isOrdering, setIsOrdering] = useState(false);
-  const [validationError, setValidationError] = useState<string>(""); // NEW: For inline validation
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'VNPay' | 'Tiền mặt' | 'Chuyển khoản'>('COD'); // Payment method selector
+  const [validationError, setValidationError] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<
+    "COD" | "VNPay" | "Tiền mặt" | "Chuyển khoản"
+  >("COD");
+
+  // Modal state
+  const [modal, setModal] = useState<ModalState>({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
+
+  const showModal = (
+    type: ModalState["type"],
+    title: string,
+    message: string,
+    onConfirm?: () => void,
+  ) => {
+    setModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm,
+      onCancel: () => setModal((prev) => ({ ...prev, isOpen: false })),
+    });
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({ ...prev, isOpen: false }));
+  };
 
   // FIX: Use _id AND unit to identify item
   const handleChangeQuantity = (id: string, unit: string, count: number) => {
@@ -101,10 +151,8 @@ const ShoppingCart: React.FC = () => {
       }
       return item;
     });
-    setCartItems(newItems);
-    localStorage.setItem(storageKey, JSON.stringify(newItems));
+    updateCartAndNotify(newItems);
   };
-
 
   // Toggle Checkbox Status
   const handleToggleStatus = (id: string, unit: string) => {
@@ -114,14 +162,12 @@ const ShoppingCart: React.FC = () => {
       }
       return item;
     });
-    setCartItems(newItems);
-    localStorage.setItem(storageKey, JSON.stringify(newItems));
+    updateCartAndNotify(newItems);
   };
 
   const handleToggleAll = (checked: boolean) => {
-    const newItems = cartItems.map(item => ({ ...item, status: checked }));
-    setCartItems(newItems);
-    localStorage.setItem(storageKey, JSON.stringify(newItems));
+    const newItems = cartItems.map((item) => ({ ...item, status: checked }));
+    updateCartAndNotify(newItems);
   };
 
   // Displayed Items chính là cartItems (vì đã load đúng nguồn)
@@ -135,12 +181,12 @@ const ShoppingCart: React.FC = () => {
       const qty = Number(item.quantity) || 0;
       return sum + cost * qty;
     },
-    0
+    0,
   );
 
   // ... (handleCheckout logic remains same)
   const handleCheckout = async () => {
-    const selectedItems = cartItems.filter(item => item.status);
+    const selectedItems = cartItems.filter((item) => item.status);
 
     // Clear previous errors first
     setValidationError("");
@@ -154,42 +200,49 @@ const ShoppingCart: React.FC = () => {
     if (!isInfo) {
       setValidationError("Vui lòng điền đầy đủ thông tin khách hàng bên dưới!");
       // Scroll to customer form
-      document.querySelector('[class*="CustomerInfo"], [class*="StaffCustomer"]')?.scrollIntoView({ behavior: 'smooth' });
+      document
+        .querySelector('[class*="CustomerInfo"], [class*="StaffCustomer"]')
+        ?.scrollIntoView({ behavior: "smooth" });
       return;
     }
 
     // Custom confirmation for staff vs customer
     const confirmMsg = isStaff
-      ? `Xác nhận bán hàng trực tiếp ${selectedItems.length} sản phẩm tại ${user?.warehouse?.name || 'cửa hàng'}?`
+      ? `Xác nhận bán hàng trực tiếp ${selectedItems.length} sản phẩm tại ${user?.warehouse?.name || "cửa hàng"}?`
       : `Xác nhận đặt hàng ${selectedItems.length} sản phẩm đã chọn?`;
 
-    if (!window.confirm(confirmMsg)) return;
+    showModal("confirm", "Xác nhận đơn hàng", confirmMsg, () => {
+      closeModal();
+      processCheckout(selectedItems);
+    });
+  };
 
-    setIsOrdering(true);
+  const processCheckout = async (selectedItems: CartItem[]) => {
     try {
-      const itemsPayload = selectedItems.map(item => ({
+      const itemsPayload = selectedItems.map((item) => ({
         id: item._id,
         quantity: item.quantity,
         cost: Number(item.cost),
-        unit: item.unit || 'Hộp',
-        productName: item.productName
+        unit: item.unit || "Hộp",
+        productName: item.productName,
       }));
 
       // Build order payload with staff info for in-store sales
       const orderPayload: any = {
         customerInfo: customerData,
-        cartItems: itemsPayload
+        cartItems: itemsPayload,
       };
 
       // If staff is logged in, add warehouse and staff info for in-store sales tracking
       if (isStaff && user) {
-        console.log('🔍 DEBUG Staff Order:', {
+        console.log("🔍 DEBUG Staff Order:", {
           userWarehouse: user.warehouse,
           warehouseId: user.warehouse?._id || user.warehouse?.id,
           staffId: user.id || user._id,
-          isStaff
+          isStaff,
         });
-        orderPayload.warehouseId = user.warehouse?._id || user.warehouse?.id || null;
+        orderPayload.warehouseId =
+          user.warehouse?._id || user.warehouse?.id || null;
         orderPayload.staffId = user.id || user._id;
         orderPayload.isInStoreSale = true; // Flag to indicate in-store sale
       }
@@ -199,79 +252,80 @@ const ShoppingCart: React.FC = () => {
 
       // Logic xử lý phương thức thanh toán cho Staff
       if (isStaff) {
-        if (paymentMethod === 'Chuyển khoản') {
+        if (paymentMethod === "Chuyển khoản") {
           // Nếu chọn Chuyển khoản -> Chuyển thành VNPay để redirect qua cổng thanh toán
-          finalPaymentMethod = 'VNPay';
+          finalPaymentMethod = "VNPay";
         }
       }
 
       orderPayload.customerInfo = {
         ...customerData,
-        paymentMethod: finalPaymentMethod
+        paymentMethod: finalPaymentMethod,
       };
 
       const result = await createOrderAPI(orderPayload);
 
       // VS: Nếu method là VNPay (do khách chọn hoặc do Staff chọn Chuyển khoản) -> Redirect
-      if (finalPaymentMethod === 'VNPay') {
+      if (finalPaymentMethod === "VNPay") {
         try {
-          const vnpayResponse = await fetch('http://127.0.0.1:3000/api/payment/create-vnpay-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              orderId: result.invoiceId,
-              amount: result.totalBill,
-              orderInfo: `Thanh toan don hang ${result.invoiceId} (POS)`
-            })
-          });
+          const vnpayResponse = await fetch(
+            "http://127.0.0.1:3000/api/payment/create-vnpay-url",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: result.invoiceId,
+                amount: result.totalBill,
+                orderInfo: `Thanh toan don hang ${result.invoiceId} (POS)`,
+              }),
+            },
+          );
           const vnpayData = await vnpayResponse.json();
 
           if (vnpayData.paymentUrl) {
             // Clear cart
-            const remainingItems = cartItems.filter(item => !item.status);
-            setCartItems(remainingItems);
-            localStorage.setItem(storageKey, JSON.stringify(remainingItems));
+            const remainingItems = cartItems.filter((item) => !item.status);
+            updateCartAndNotify(remainingItems);
 
             // Redirect
             window.location.href = vnpayData.paymentUrl;
             return;
           }
         } catch (vnpayErr) {
-          console.error('VNPay error:', vnpayErr);
-          alert('Lỗi kết nối VNPay.');
+          console.error("VNPay error:", vnpayErr);
+          showModal(
+            "error",
+            "Lỗi thanh toán",
+            "Lỗi kết nối VNPay. Vui lòng thử lại.",
+          );
         }
       }
 
       const successMsg = isStaff
-        ? `Bán hàng thành công! Mã đơn: ${result.invoiceId}\nTổng tiền: ${result.totalBill?.toLocaleString()}đ\nChi nhánh: ${user?.warehouse?.name || 'N/A'}`
+        ? `Bán hàng thành công! Mã đơn: ${result.invoiceId}\nTổng tiền: ${result.totalBill?.toLocaleString()}đ\nChi nhánh: ${user?.warehouse?.name || "N/A"}`
         : `Đặt hàng thành công! Mã đơn: ${result.invoiceId}\nTổng tiền: ${result.totalBill?.toLocaleString()}đ`;
 
-      alert(successMsg);
+      showModal("success", "Thành công!", successMsg, () => {
+        closeModal();
+        window.location.href = "/";
+      });
 
       // Remove Paid Items
-      const remainingItems = cartItems.filter(item => !item.status);
-      setCartItems(remainingItems);
-      localStorage.setItem(storageKey, JSON.stringify(remainingItems));
-
-      window.location.href = "/";
+      const remainingItems = cartItems.filter((item) => !item.status);
+      updateCartAndNotify(remainingItems);
     } catch (err: any) {
       console.error(err);
-      alert(`Lỗi đặt hàng: ${err.message}`);
+      showModal("error", "Lỗi đặt hàng", `Lỗi: ${err.message}`);
     } finally {
       setIsOrdering(false);
     }
   };
 
-
-  // FIX: Remove by ID and Unit
   const removeItemByX = (id: string, unit: string): CartItem[] => {
-    const newItems = cartItems.filter((item) => !(item._id === id && item.unit === unit));
-    setCartItems(newItems);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(newItems));
-    } catch (e) {
-      console.error("Lỗi khi cập nhật localStorage:", e);
-    }
+    const newItems = cartItems.filter(
+      (item) => !(item._id === id && item.unit === unit),
+    );
+    updateCartAndNotify(newItems);
     return newItems;
   };
   // Khi bấm nút xóa
@@ -280,8 +334,6 @@ const ShoppingCart: React.FC = () => {
     <div className={styles.hero}>
       <div className={styles.container}>
         <div className={styles.leftPanel}>
-
-
           <div className={styles.freeShipBanner}>
             Miễn phí vận chuyển&nbsp;
             <span style={{ color: "#333" }}>
@@ -296,12 +348,16 @@ const ShoppingCart: React.FC = () => {
                 type="checkbox"
                 className={styles.checkbox}
                 onChange={(e) => handleToggleAll(e.target.checked)}
-                checked={cartItems.length > 0 && cartItems.every(i => i.status)}
+                checked={
+                  cartItems.length > 0 && cartItems.every((i) => i.status)
+                }
                 disabled={isBuyNowMode}
               />
             </div>
             <div className={styles.colProduct}>
-              {isBuyNowMode ? 'Sản phẩm mua ngay' : `Chọn tất cả (${cartItems.length})`}
+              {isBuyNowMode
+                ? "Sản phẩm mua ngay"
+                : `Chọn tất cả (${cartItems.length})`}
             </div>
             <div className={styles.colPrice}>Giá thành</div>
             <div className={styles.colQty}>Số lượng</div>
@@ -319,7 +375,9 @@ const ShoppingCart: React.FC = () => {
                     type="checkbox"
                     className={styles.checkbox}
                     checked={!!item.status}
-                    onChange={() => handleToggleStatus(item._id, item.unit || '')}
+                    onChange={() =>
+                      handleToggleStatus(item._id, item.unit || "")
+                    }
                   />
                 </div>
 
@@ -347,7 +405,9 @@ const ShoppingCart: React.FC = () => {
                   <div className={styles.qtyGroup}>
                     <button
                       className={styles.qtyBtn}
-                      onClick={() => handleChangeQuantity(item._id, item.unit || '', -1)}
+                      onClick={() =>
+                        handleChangeQuantity(item._id, item.unit || "", -1)
+                      }
                     >
                       -
                     </button>
@@ -359,7 +419,9 @@ const ShoppingCart: React.FC = () => {
                     />
                     <button
                       className={styles.qtyBtn}
-                      onClick={() => handleChangeQuantity(item._id, item.unit || '', 1)}
+                      onClick={() =>
+                        handleChangeQuantity(item._id, item.unit || "", 1)
+                      }
                     >
                       +
                     </button>
@@ -373,12 +435,23 @@ const ShoppingCart: React.FC = () => {
                       value={item.unit}
                       onChange={(e) => {
                         const newUnit = e.target.value;
-                        const variant = item.variants?.find((v: any) => v.unit === newUnit);
+                        const variant = item.variants?.find(
+                          (v: any) => v.unit === newUnit,
+                        );
                         // Check duplicate before changing unit
-                        const isDuplicate = cartItems.some(ci => ci._id === item._id && ci.unit === newUnit && ci !== item);
+                        const isDuplicate = cartItems.some(
+                          (ci) =>
+                            ci._id === item._id &&
+                            ci.unit === newUnit &&
+                            ci !== item,
+                        );
 
                         if (isDuplicate) {
-                          alert(`Trong giỏ hàng đã có sản phẩm này với đơn vị ${newUnit}. Vui lòng tăng số lượng sản phẩm đó thay vì đổi đơn vị.`);
+                          showModal(
+                            "info",
+                            "Thông báo",
+                            `Trong giỏ hàng đã có sản phẩm này với đơn vị ${newUnit}. Vui lòng tăng số lượng sản phẩm đó thay vì đổi đơn vị.`,
+                          );
                           return;
                         }
 
@@ -386,12 +459,19 @@ const ShoppingCart: React.FC = () => {
                           const newItems = cartItems.map((ci) => {
                             // Only update THIS item (identified by id AND old unit)
                             if (ci._id === item._id && ci.unit === item.unit) {
-                              return { ...ci, unit: newUnit, cost: variant.price };
+                              return {
+                                ...ci,
+                                unit: newUnit,
+                                cost: variant.price,
+                              };
                             }
                             return ci;
                           });
                           setCartItems(newItems);
-                          localStorage.setItem("shoppingCart", JSON.stringify(newItems));
+                          localStorage.setItem(
+                            "shoppingCart",
+                            JSON.stringify(newItems),
+                          );
                         }
                       }}
                     >
@@ -402,7 +482,9 @@ const ShoppingCart: React.FC = () => {
                       ))}
                     </select>
                   ) : (
-                    <span style={{ fontWeight: 500, color: "#333" }}>{item.unit}</span>
+                    <span style={{ fontWeight: 500, color: "#333" }}>
+                      {item.unit}
+                    </span>
                   )}
                 </div>
 
@@ -411,7 +493,7 @@ const ShoppingCart: React.FC = () => {
                     className={styles.deleteBtn}
                     onClick={() => {
                       // FIX: Remove specific unit item
-                      removeItemByX(item._id, item.unit || '');
+                      removeItemByX(item._id, item.unit || "");
                     }}
                   >
                     <TrashIcon />
@@ -437,7 +519,9 @@ const ShoppingCart: React.FC = () => {
           </div>
 
           <div className={styles.summaryRow}>
-            <span>Tổng tiền ({cartItems.filter(i => i.status).length} sản phẩm)</span>
+            <span>
+              Tổng tiền ({cartItems.filter((i) => i.status).length} sản phẩm)
+            </span>
             <span className={styles.summaryVal}>
               {totalAmount.toLocaleString("vi-VN")}đ
             </span>
@@ -455,100 +539,128 @@ const ShoppingCart: React.FC = () => {
           </div>
 
           {/* Payment Method Selector */}
-          <div style={{
-            marginBottom: '16px',
-            padding: '16px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px'
-          }}>
-            <div style={{ marginBottom: '10px', fontWeight: '600', color: '#333' }}>
+          <div
+            style={{
+              marginBottom: "16px",
+              padding: "16px",
+              backgroundColor: "#f8f9fa",
+              borderRadius: "8px",
+            }}
+          >
+            <div
+              style={{ marginBottom: "10px", fontWeight: "600", color: "#333" }}
+            >
               Phương thức thanh toán
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: "flex", gap: "12px" }}>
               {isStaff ? (
                 <>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    padding: '10px 16px',
-                    borderRadius: '8px',
-                    border: paymentMethod === 'Tiền mặt' ? '2px solid #28a745' : '2px solid #ddd',
-                    backgroundColor: paymentMethod === 'Tiền mặt' ? '#e8f5e9' : 'white',
-                    flex: 1
-                  }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: "pointer",
+                      padding: "10px 16px",
+                      borderRadius: "8px",
+                      border:
+                        paymentMethod === "Tiền mặt"
+                          ? "2px solid #28a745"
+                          : "2px solid #ddd",
+                      backgroundColor:
+                        paymentMethod === "Tiền mặt" ? "#e8f5e9" : "white",
+                      flex: 1,
+                    }}
+                  >
                     <input
                       type="radio"
                       name="paymentMethod"
                       value="Tiền mặt"
-                      checked={paymentMethod === 'Tiền mặt'}
-                      onChange={() => setPaymentMethod('Tiền mặt')}
+                      checked={paymentMethod === "Tiền mặt"}
+                      onChange={() => setPaymentMethod("Tiền mặt")}
                     />
                     <span>💵 Tiền mặt</span>
                   </label>
 
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    padding: '10px 16px',
-                    borderRadius: '8px',
-                    border: paymentMethod === 'Chuyển khoản' ? '2px solid #0066cc' : '2px solid #ddd',
-                    backgroundColor: paymentMethod === 'Chuyển khoản' ? '#e3f2fd' : 'white',
-                    flex: 1
-                  }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: "pointer",
+                      padding: "10px 16px",
+                      borderRadius: "8px",
+                      border:
+                        paymentMethod === "Chuyển khoản"
+                          ? "2px solid #0066cc"
+                          : "2px solid #ddd",
+                      backgroundColor:
+                        paymentMethod === "Chuyển khoản" ? "#e3f2fd" : "white",
+                      flex: 1,
+                    }}
+                  >
                     <input
                       type="radio"
                       name="paymentMethod"
                       value="Chuyển khoản"
-                      checked={paymentMethod === 'Chuyển khoản'}
-                      onChange={() => setPaymentMethod('Chuyển khoản')}
+                      checked={paymentMethod === "Chuyển khoản"}
+                      onChange={() => setPaymentMethod("Chuyển khoản")}
                     />
                     <span>💳 Chuyển khoản (Banking)</span>
                   </label>
                 </>
               ) : (
                 <>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    padding: '10px 16px',
-                    borderRadius: '8px',
-                    border: paymentMethod === 'COD' ? '2px solid #28a745' : '2px solid #ddd',
-                    backgroundColor: paymentMethod === 'COD' ? '#e8f5e9' : 'white',
-                    flex: 1
-                  }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: "pointer",
+                      padding: "10px 16px",
+                      borderRadius: "8px",
+                      border:
+                        paymentMethod === "COD"
+                          ? "2px solid #28a745"
+                          : "2px solid #ddd",
+                      backgroundColor:
+                        paymentMethod === "COD" ? "#e8f5e9" : "white",
+                      flex: 1,
+                    }}
+                  >
                     <input
                       type="radio"
                       name="paymentMethod"
                       value="COD"
-                      checked={paymentMethod === 'COD'}
-                      onChange={() => setPaymentMethod('COD')}
+                      checked={paymentMethod === "COD"}
+                      onChange={() => setPaymentMethod("COD")}
                     />
                     <span>💵 COD (Thanh toán khi nhận)</span>
                   </label>
 
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    padding: '10px 16px',
-                    borderRadius: '8px',
-                    border: paymentMethod === 'VNPay' ? '2px solid #0066cc' : '2px solid #ddd',
-                    backgroundColor: paymentMethod === 'VNPay' ? '#e3f2fd' : 'white',
-                    flex: 1
-                  }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: "pointer",
+                      padding: "10px 16px",
+                      borderRadius: "8px",
+                      border:
+                        paymentMethod === "VNPay"
+                          ? "2px solid #0066cc"
+                          : "2px solid #ddd",
+                      backgroundColor:
+                        paymentMethod === "VNPay" ? "#e3f2fd" : "white",
+                      flex: 1,
+                    }}
+                  >
                     <input
                       type="radio"
                       name="paymentMethod"
                       value="VNPay"
-                      checked={paymentMethod === 'VNPay'}
-                      onChange={() => setPaymentMethod('VNPay')}
+                      checked={paymentMethod === "VNPay"}
+                      onChange={() => setPaymentMethod("VNPay")}
                     />
                     <span>💳 VNPay</span>
                   </label>
@@ -561,49 +673,119 @@ const ShoppingCart: React.FC = () => {
 
           {/* Validation Error Message */}
           {validationError && (
-            <div style={{
-              backgroundColor: '#fff3cd',
-              border: '1px solid #ffc107',
-              color: '#856404',
-              padding: '10px 16px',
-              borderRadius: '8px',
-              marginBottom: '12px',
-              fontSize: '14px',
-              textAlign: 'center'
-            }}>
+            <div
+              style={{
+                backgroundColor: "#fff3cd",
+                border: "1px solid #ffc107",
+                color: "#856404",
+                padding: "10px 16px",
+                borderRadius: "8px",
+                marginBottom: "12px",
+                fontSize: "14px",
+                textAlign: "center",
+              }}
+            >
               ⚠️ {validationError}
             </div>
           )}
 
           <button
             className={styles.btnCheckout}
-            disabled={isOrdering || cartItems.filter(i => i.status).length === 0}
+            disabled={
+              isOrdering || cartItems.filter((i) => i.status).length === 0
+            }
             style={{
-              opacity: isOrdering ? 0.7 : cartItems.filter(i => i.status).length === 0 ? 0.5 : 1,
-              cursor: isOrdering ? 'wait' : cartItems.filter(i => i.status).length === 0 ? 'not-allowed' : 'pointer',
-              backgroundColor: isInfo && cartItems.filter(i => i.status).length > 0 ? '#28a745' : '#1d48ba'
+              opacity: isOrdering
+                ? 0.7
+                : cartItems.filter((i) => i.status).length === 0
+                  ? 0.5
+                  : 1,
+              cursor: isOrdering
+                ? "wait"
+                : cartItems.filter((i) => i.status).length === 0
+                  ? "not-allowed"
+                  : "pointer",
+              backgroundColor:
+                isInfo && cartItems.filter((i) => i.status).length > 0
+                  ? "#28a745"
+                  : "#1d48ba",
             }}
             onClick={(e) => {
-              console.log('🛒 CHECKOUT CLICKED', {
+              console.log("🛒 CHECKOUT CLICKED", {
                 isOrdering,
                 isInfo,
-                selectedCount: cartItems.filter(i => i.status).length,
+                selectedCount: cartItems.filter((i) => i.status).length,
                 isStaff,
-                disabled: isOrdering || cartItems.filter(i => i.status).length === 0
+                disabled:
+                  isOrdering || cartItems.filter((i) => i.status).length === 0,
               });
               handleCheckout();
             }}
           >
             {isOrdering
-              ? 'Đang xử lý...'
-              : cartItems.filter(i => i.status).length === 0
-                ? 'Chọn sản phẩm'
+              ? "Đang xử lý..."
+              : cartItems.filter((i) => i.status).length === 0
+                ? "Chọn sản phẩm"
                 : !isInfo
-                  ? 'Điền thông tin khách hàng'
-                  : isStaff ? '✓ Xác nhận bán hàng' : '✓ Đặt hàng ngay'}
+                  ? "Điền thông tin khách hàng"
+                  : isStaff
+                    ? "✓ Xác nhận bán hàng"
+                    : "✓ Đặt hàng ngay"}
           </button>
         </div>
       </div>
+
+      {/* Custom Modal */}
+      {modal.isOpen && (
+        <div className={styles.modalOverlay} onClick={closeModal}>
+          <div
+            className={styles.modalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className={`${styles.modalIcon} ${styles[`modalIcon${modal.type.charAt(0).toUpperCase() + modal.type.slice(1)}`]}`}
+            >
+              {modal.type === "confirm" && "?"}
+              {modal.type === "success" && "✓"}
+              {modal.type === "error" && "✕"}
+              {modal.type === "info" && "i"}
+            </div>
+            <h3 className={styles.modalTitle}>{modal.title}</h3>
+            <p className={styles.modalMessage}>{modal.message}</p>
+            <div className={styles.modalButtons}>
+              {modal.type === "confirm" ? (
+                <>
+                  <button
+                    className={styles.modalBtnCancel}
+                    onClick={closeModal}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    className={styles.modalBtnConfirm}
+                    onClick={modal.onConfirm}
+                  >
+                    Xác nhận
+                  </button>
+                </>
+              ) : (
+                <button
+                  className={
+                    modal.type === "success"
+                      ? styles.modalBtnSuccess
+                      : modal.type === "error"
+                        ? styles.modalBtnError
+                        : styles.modalBtnConfirm
+                  }
+                  onClick={modal.onConfirm || closeModal}
+                >
+                  {modal.type === "success" ? "Tiếp tục" : "Đã hiểu"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -40,16 +40,20 @@ export interface ApiResponse {
 }
 
 // Hàm Fetch thủ công (Hỗ trợ Pagination & Prefetching & Filter)
-export const fetchProductsByPage = async (page: number, limit: number = 8, filters: Record<string, any> = {}) => {
+export const fetchProductsByPage = async (
+  page: number,
+  limit: number = 8,
+  filters: Record<string, any> = {},
+) => {
   const params = new URLSearchParams();
   params.append("page", page.toString());
   params.append("limit", limit.toString());
 
   // Append filters
-  Object.keys(filters).forEach(key => {
+  Object.keys(filters).forEach((key) => {
     const value = filters[key];
     if (Array.isArray(value)) {
-      value.forEach(v => params.append(key, v));
+      value.forEach((v) => params.append(key, v));
     } else if (value !== undefined && value !== null && value !== "") {
       params.append(key, value.toString());
     }
@@ -57,25 +61,25 @@ export const fetchProductsByPage = async (page: number, limit: number = 8, filte
 
   const response = await fetch(`${API_URL}?${params.toString()}`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
   });
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  return await response.json() as ApiResponse;
+  return (await response.json()) as ApiResponse;
 };
 
 // Hàm Fetch Chi tiết
 export const fetchProductById = async (id: string | number) => {
-  const detailUrl = API_URL.replace('/getAll', '') + `/${id}`;
+  const detailUrl = API_URL.replace("/getAll", "") + `/${id}`;
   const response = await fetch(detailUrl, {
     method: "GET",
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
   });
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  return await response.json() as ApiData;
+  return (await response.json()) as ApiData;
 };
 
 export const useProductFetcher = () => {
@@ -97,8 +101,9 @@ export const useProductFetcher = () => {
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(
-            `HTTP error! status: ${response.status} - ${errorText || response.statusText
-            }`
+            `HTTP error! status: ${response.status} - ${
+              errorText || response.statusText
+            }`,
           );
         }
 

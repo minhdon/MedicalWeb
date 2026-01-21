@@ -1,18 +1,27 @@
-import express from 'express'
-import { registerUser, loginUser, resetPasswordRequest, resetPassword } from '../controllers/authController.js'
+import express from "express";
+import {
+  registerUser,
+  loginUser,
+  resetPasswordRequest,
+  resetPassword,
+  changePassword,
+} from "../controllers/authController.js";
 
-const router = express.Router()
+const router = express.Router();
 
 // POST /api/auth/register
-router.post('/register', registerUser)
+router.post("/register", registerUser);
 
 // POST /api/auth/login
-router.post('/login', loginUser)
+router.post("/login", loginUser);
 
 // POST /api/auth/forgot-password
-router.post('/forgot-password', resetPasswordRequest)
+router.post("/forgot-password", resetPasswordRequest);
 
 // POST /api/auth/reset-password
-router.post('/reset-password', resetPassword)
+router.post("/reset-password", resetPassword);
 
-export default router
+// POST /api/auth/change-password
+router.post("/change-password", changePassword);
+
+export default router;

@@ -1,8 +1,9 @@
-import React, { useState, useContext, useMemo, useEffect } from "react";
+import React, { useState, useContext, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, createSearchParams, useSearchParams } from "react-router";
-import { useProductFetcher, fetchProductsByPage, type ApiData } from "../CallApi/CallApiProduct";
+import { fetchProductsByPage, type ApiData } from "../CallApi/CallApiProduct";
 import { SortContext } from "../useContext/priceSortContext";
-import { IndexContext } from "../useContext/IndexProductContext";
+
 import { useAuth } from "../../contexts/AuthContext";
 
 import styles from "./ProductList.module.css";
@@ -15,6 +16,17 @@ interface CartItem extends ApiData {
 }
 
 const DataFetcher: React.FC = () => {
+  // Toast notification state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isAcceptAddToCart, setIsAcceptAddToCart] = useState(true);
+
+  // Function to show toast message
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2000); // Tự động đóng sau 0.5s
+  };
   // Get authentication state for role-based visibility
   const { isStaff } = useAuth();
 
@@ -25,7 +37,6 @@ const DataFetcher: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const sortContext = useContext(SortContext);
-  const indexContext = useContext(IndexContext);
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -40,7 +51,7 @@ const DataFetcher: React.FC = () => {
   // Hàm load dữ liệu 1 trang
   const loadPage = async (page: number) => {
     // Tạo cache key unique theo page và filter
-    const cacheKey = `${page}-${filterQuery || 'all'}-${brandQuery.join(',')}-${countryQuery.join(',')}-${minPriceQuery}-${maxPriceQuery}`;
+    const cacheKey = `${page}-${filterQuery || "all"}-${brandQuery.join(",")}-${countryQuery.join(",")}-${minPriceQuery}-${maxPriceQuery}`;
 
     // Nếu đã có data cho key này thì dùng lại
     // Tuy nhiên hiện tại productsMap đang key theo number (page).
@@ -61,12 +72,12 @@ const DataFetcher: React.FC = () => {
         minPrice: minPriceQuery,
         maxPrice: maxPriceQuery,
         brand: brandQuery,
-        origin: countryQuery // Map 'country' param to 'origin' backend field if needed, or keep 'country' and handle in BE
+        origin: countryQuery, // Map 'country' param to 'origin' backend field if needed, or keep 'country' and handle in BE
       };
 
       const res = await fetchProductsByPage(page, PRODUCTS_PER_PAGE, filters);
 
-      setProductsMap(prev => ({ ...prev, [page]: res.data }));
+      setProductsMap((prev) => ({ ...prev, [page]: res.data }));
       if (page === currentPage) {
         setTotalPages(res.pagination.totalPages);
         setLoading(false);
@@ -86,13 +97,27 @@ const DataFetcher: React.FC = () => {
       if (currentPage + 2 <= totalPages) loadPage(currentPage + 2);
     };
     run();
-  }, [currentPage, filterQuery, minPriceQuery, maxPriceQuery, JSON.stringify(brandQuery), JSON.stringify(countryQuery)]);
+  }, [
+    currentPage,
+    filterQuery,
+    minPriceQuery,
+    maxPriceQuery,
+    JSON.stringify(brandQuery),
+    JSON.stringify(countryQuery),
+  ]);
 
   // Reset pagination khi filter thay đổi
   useEffect(() => {
     setCurrentPage(1);
     setProductsMap({});
-  }, [maxPriceQuery, minPriceQuery, sortContext.typeSort, filterQuery, JSON.stringify(brandQuery), JSON.stringify(countryQuery)]);
+  }, [
+    maxPriceQuery,
+    minPriceQuery,
+    sortContext.typeSort,
+    filterQuery,
+    JSON.stringify(brandQuery),
+    JSON.stringify(countryQuery),
+  ]);
 
   // Data hiển thị: Lấy từ Cache State
   const currentProducts = productsMap[currentPage] || [];
@@ -100,7 +125,6 @@ const DataFetcher: React.FC = () => {
   // Logic hiển thị Pagination (Giữ nguyên UI, chỉ đổi logic tính toán)
   // const totalPages  -> đã có từ State
   // const indexOfLastProduct  -> Không cần tính để slice nữa
-
 
   const toDetailProduct = (id: number) => {
     navigate({
@@ -116,7 +140,12 @@ const DataFetcher: React.FC = () => {
     // 1. Nếu Mua Ngay -> Lưu vào storage RIÊNG 'buyNowCart' -> Không ảnh hưởng giỏ hàng chính
     if (isBuyNow) {
       // Chỉ lưu 1 sản phẩm duy nhất vào buyNowCart
-      const buyNowItem: CartItem = { ...item, quantity: 1, unit: unitToAdd, status: true };
+      const buyNowItem: CartItem = {
+        ...item,
+        quantity: 1,
+        unit: unitToAdd,
+        status: true,
+      };
       localStorage.setItem("buyNowCart", JSON.stringify([buyNowItem]));
       navigate("/ShoppingCart?mode=buy_now");
       return;
@@ -125,16 +154,23 @@ const DataFetcher: React.FC = () => {
     // 2. Logic Thêm vào giỏ thường (Giữ nguyên)
     const cartData = localStorage.getItem("shoppingCart");
     // Ensure status field exists
-    let cartItems: CartItem[] = cartData ? JSON.parse(cartData) : [];
+    const cartItems: CartItem[] = cartData ? JSON.parse(cartData) : [];
 
     // Check duplicate using _id and unit
     const existingItemIndex = cartItems.findIndex(
-      (cartItem) => String(cartItem._id) === String(item._id) && cartItem.unit === unitToAdd
+      (cartItem) =>
+        String(cartItem._id) === String(item._id) &&
+        cartItem.unit === unitToAdd,
     );
 
     if (existingItemIndex < 0) {
       // Add new item with status = true
-      const newItem: CartItem = { ...item, quantity: 1, unit: unitToAdd, status: true };
+      const newItem: CartItem = {
+        ...item,
+        quantity: 1,
+        unit: unitToAdd,
+        status: true,
+      };
       cartItems.push(newItem);
     } else {
       // Update quantity
@@ -142,7 +178,9 @@ const DataFetcher: React.FC = () => {
     }
 
     localStorage.setItem("shoppingCart", JSON.stringify(cartItems));
-    alert(`Đã thêm ${item.productName} vào giỏ hàng!`);
+    // Dispatch event for Header cart count update
+    window.dispatchEvent(new CustomEvent("cartUpdated", { detail: cartItems }));
+    showToast(`Đã thêm ${item.productName} vào giỏ hàng!`);
   };
 
   const handlePageChange = (pageNumber: number) => {
@@ -159,6 +197,67 @@ const DataFetcher: React.FC = () => {
 
   return (
     <>
+      {/* Toast Notification - Góc phải trên (sử dụng Portal) */}
+      {toastMessage &&
+        isAcceptAddToCart == true &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: "20px",
+              right: "20px",
+              backgroundColor: "#3567cd",
+              color: "#fff",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+              zIndex: 9999,
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              animation: "slideIn 0.2s ease-out",
+            }}
+          >
+            {toastMessage}
+          </div>,
+          document.body,
+        )}
+      {toastMessage &&
+        isAcceptAddToCart == false &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: "20px",
+              right: "20px",
+              backgroundColor: "#b41111",
+              color: "#fff",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+              zIndex: 9999,
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              animation: "slideIn 0.2s ease-out",
+            }}
+          >
+            {toastMessage}
+          </div>,
+          document.body,
+        )}
+
+      <style>
+        {`
+          @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+          }
+        `}
+      </style>
+
       <div className={styles.hero}>
         {currentProducts.map((item) => (
           <div
@@ -173,7 +272,10 @@ const DataFetcher: React.FC = () => {
 
             {/* Logic hiển thị giá: Ẩn nếu là thuốc theo đơn VÀ không phải staff */}
             {item.category === "Thuốc theo đơn" && !isStaff ? (
-              <p className={styles.price} style={{ color: '#d32f2f', fontSize: '14px' }}>
+              <p
+                className={styles.price}
+                style={{ color: "#d32f2f", fontSize: "14px" }}
+              >
                 Thuốc kê đơn
               </p>
             ) : (
@@ -186,26 +288,44 @@ const DataFetcher: React.FC = () => {
             {item.category === "Thuốc theo đơn" && !isStaff ? (
               <button
                 className={styles.button}
-                style={{ backgroundColor: "#ff9800", opacity: 0.9, width: '100%' }}
+                style={{
+                  backgroundColor: "#ff9800",
+                  opacity: 0.9,
+                  width: "100%",
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  alert("Sản phẩm cần tư vấn của Dược sĩ. Vui lòng liên hệ hotline!");
+                  setIsAcceptAddToCart(false);
+                  showToast(
+                    "Sản phẩm cần tư vấn của Dược sĩ. Vui lòng liên hệ nhân viên!",
+                  );
                 }}
               >
                 Tư vấn ngay
               </button>
             ) : (
-              <div style={{ display: 'flex', gap: '5px', width: '100%', position: 'absolute', top: '400px', left: '0', padding: '0 10px', boxSizing: 'border-box' }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "5px",
+                  width: "100%",
+                  position: "absolute",
+                  top: "400px",
+                  left: "0",
+                  padding: "0 10px",
+                  boxSizing: "border-box",
+                }}
+              >
                 <button
                   className={styles.button}
                   style={{
                     flex: 1,
-                    backgroundColor: '#1d48ba',
-                    fontSize: '13px',
-                    padding: '5px',
-                    position: 'static',
-                    width: 'auto',
-                    margin: 0
+                    backgroundColor: "#1d48ba",
+                    fontSize: "13px",
+                    padding: "5px",
+                    position: "static",
+                    width: "auto",
+                    margin: 0,
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -218,17 +338,18 @@ const DataFetcher: React.FC = () => {
                   className={styles.button}
                   style={{
                     flex: 1,
-                    backgroundColor: '#fff',
-                    color: '#1d48ba',
-                    border: '1px solid #1d48ba',
-                    fontSize: '13px',
-                    padding: '5px',
-                    position: 'static',
-                    width: 'auto',
-                    margin: 0
+                    backgroundColor: "#fff",
+                    color: "#1d48ba",
+                    border: "1px solid #1d48ba",
+                    fontSize: "13px",
+                    padding: "5px",
+                    position: "static",
+                    width: "auto",
+                    margin: 0,
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsAcceptAddToCart(true);
                     handleAddToCart(item, false); // Thêm vào giỏ
                   }}
                 >

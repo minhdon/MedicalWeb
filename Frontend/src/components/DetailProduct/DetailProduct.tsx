@@ -94,6 +94,8 @@ const ProductDetail: React.FC = () => {
     }
 
     localStorage.setItem("shoppingCart", JSON.stringify(cartItems));
+    // Dispatch event for Header cart count update
+    window.dispatchEvent(new CustomEvent("cartUpdated", { detail: cartItems }));
     alert(`Đã thêm ${itemToAdd.unit} vào giỏ hàng!`);
   };
 

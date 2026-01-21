@@ -1,0 +1,235 @@
+/* CustomerInfo.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #f8f9fa; /* Màu nền tổng thể nhạt */
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+/* Header: Chứa Tiêu đề và Nút chỉnh sửa */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a202c;
+  /* Căn giữa tiêu đề tuyệt đối nếu muốn giống hệt ảnh, 
+     hoặc để mặc định flex thì bỏ dòng bên dưới */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+}
+
+.editButton {
+  background-color: #0f172a; /* Màu xanh đen đậm */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto; /* Đẩy nút sang phải */
+  transition: opacity 0.2s;
+}
+
+.editButton:hover {
+  opacity: 0.9;
+}
+
+/* Card: Khối trắng chứa thông tin */
+.card {
+  background-color: white;
+  width: 100%;
+  max-width: 600px;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05); /* Đổ bóng nhẹ */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Avatar Section */
+.avatarContainer {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  background-color: #0f172a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+}
+
+.avatarIcon {
+  color: white;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatarIcon i {
+  font-size: 30px;
+}
+/* Info Row: Các dòng thông tin (Họ tên, Địa chỉ...) */
+.infoRow {
+  background-color: #f8fafc; /* Màu nền xám nhạt của từng ô input */
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.iconWrapper {
+  width: 40px;
+  height: 40px;
+  background-color: #e2e8f0; /* Màu nền của icon tròn/vuông */
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.infoContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-size: 12px;
+  color: #94a3b8; /* Màu chữ nhạt cho label */
+  font-weight: 500;
+}
+
+.value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.buttonGroup {
+  display: flex; /* Xếp hàng ngang */
+  justify-content: space-between; /* Đẩy 2 phần tử con ra xa nhau nhất có thể (về 2 phía) */
+  align-items: center;
+  width: 100%;
+  max-width: 600px; /* Bằng độ rộng card */
+  margin-top: 24px;
+  gap: 20px; /* Khoảng cách an toàn giữa 2 nút (để khi màn hình nhỏ ko bị dính vào nhau) */
+}
+
+/* Style chung cho button để đỡ viết lại */
+.btnBase {
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  /* Nếu muốn nút to đẹp, chia đôi không gian: */
+  width: 48%;
+  /* Nếu muốn nút nhỏ gọn vừa chữ thì đổi thành: width: auto; */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Nút Quay về (Bên trái - Style viền) */
+.backButton {
+  composes: btnBase; /* Kế thừa style base */
+  background-color: transparent;
+  color: #0f172a;
+  border: 1px solid #cbd5e1; /* Viền xám nhẹ */
+}
+
+.backButton:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+/* Nút Xác nhận (Bên phải - Style đặc) */
+.confirmButton {
+  composes: btnBase; /* Kế thừa style base */
+  background-color: #0f172a;
+  color: white;
+  border: none;
+}
+
+.confirmButton:hover {
+  background-color: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+/* Responsive cho màn hình nhỏ */
+.value {
+  /* Quan trọng: Bỏ nền và viền */
+  background-color: transparent;
+  border: none;
+  outline: none; /* Bỏ viền xanh (focus ring) khi click chuột vào */
+
+  /* Căn chỉnh kích thước và chữ */
+  width: 100%; /* Chiếm hết chiều ngang của khung chứa */
+  padding: 0; /* Bỏ padding mặc định để chữ thẳng hàng */
+  margin-top: 4px; /* Tạo khoảng cách nhỏ với label phía trên nếu cần */
+
+  /* Style cho chữ nhập vào (tùy chỉnh theo design của bạn) */
+  font-size: 16px;
+  font-weight: 500;
+  color: #333; /* Màu chữ (ví dụ màu đen xám) */
+  font-family: inherit; /* Đồng bộ font chữ với cả trang */
+}
+
+/* (Tùy chọn) Thêm hiệu ứng gạch chân mờ khi người dùng click vào để biết đang nhập */
+.value:focus {
+  border-bottom: 1px solid #ccc; /* Chỉ hiện gạch chân mờ khi nhập */
+}
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    gap: 15px;
+  }
+  .title {
+    position: static;
+    transform: none;
+  }
+  .editButton {
+    margin-left: 0;
+  }
+  .card {
+    padding: 20px;
+  }
+  .buttonGroup {
+    flex-direction: column; /* Quay dọc */
+  }
+  .btnBase {
+    width: 100%; /* Full chiều rộng */
+  }
+}

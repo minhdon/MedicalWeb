@@ -1,0 +1,238 @@
+.container {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin: 0 0 2rem 0;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--primary) / 0.7) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 2rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.error {
+  color: hsl(0, 70%, 50%);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(
+    145deg,
+    hsl(var(--card)) 0%,
+    hsl(var(--card) / 0.95) 100%
+  );
+  border-radius: 16px;
+  box-shadow: 0 10px 40px hsl(var(--foreground) / 0.1);
+  border: 1px solid hsl(var(--border));
+}
+
+.emptyIcon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.5) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.emptyText {
+  font-size: 1.125rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  margin: 0;
+}
+
+.emptySubtext {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground) / 0.7);
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+/* Order List Styles */
+.orderList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.orderCard {
+  background: hsl(var(--card));
+  border-radius: 12px;
+  border: 1px solid hsl(var(--border));
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px hsl(var(--foreground) / 0.05);
+  transition: box-shadow 0.2s ease;
+}
+
+.orderCard:hover {
+  box-shadow: 0 8px 30px hsl(var(--foreground) / 0.1);
+}
+
+.orderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.orderId {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statusSuccess {
+  background: hsl(142, 76%, 90%);
+  color: hsl(142, 76%, 36%);
+}
+
+.statusPending {
+  background: hsl(45, 93%, 90%);
+  color: hsl(45, 93%, 30%);
+}
+
+.statusCancelled {
+  background: hsl(0, 70%, 90%);
+  color: hsl(0, 70%, 40%);
+}
+
+.statusDefault {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.orderMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.itemList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  border-top: 1px dashed hsl(var(--border));
+  border-bottom: 1px dashed hsl(var(--border));
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.itemName {
+  flex: 1;
+  color: hsl(var(--foreground));
+}
+
+.itemQty {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+.itemPrice {
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.orderFooter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.totalLabel {
+  color: hsl(var(--muted-foreground));
+}
+
+.totalAmount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: hsl(var(--primary));
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .emptyState {
+    padding: 3rem 1.5rem;
+  }
+
+  .orderHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .orderMeta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .item {
+    flex-wrap: wrap;
+  }
+
+  .itemName {
+    flex-basis: 100%;
+  }
+}

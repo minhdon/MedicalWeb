@@ -1,5 +1,5 @@
 .section {
-  margin: 150px 0 5vw 100px;
+  margin: 20px 0 5vw 100px;
   position: relative;
   display: flex;
   align-items: center;
@@ -76,7 +76,7 @@
   font-size: 1.5rem;
 }
 .input-box input:focus ~ label,
-.input-box input:valid ~ label {
+.input-box input:not(:placeholder-shown) ~ label {
   top: -20px;
 }
 .section button {
@@ -127,7 +127,7 @@
     flex-direction: column;
     padding-bottom: 20px;
   }
-  
+
   .section i {
     display: none; /* Hide large icon or adjust */
   }
@@ -140,7 +140,7 @@
     margin: 20px 0;
     font-size: 2.5rem;
   }
-  
+
   .frame {
     display: none; /* Simplify layout by hiding the absolute frame */
   }
@@ -164,7 +164,7 @@
     width: 100%;
     margin-top: 20px;
   }
-  
+
   .contact-info {
     width: 90%;
     margin: 20px auto;

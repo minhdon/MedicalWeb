@@ -1,47 +1,33 @@
 import { useRef, useState, useEffect } from "react";
 import styles from "../CSS/Header.module.css";
-
 import { useNavigate } from "react-router";
 import { createSearchParams } from "react-router";
-import { useAuth } from "../../../contexts/AuthContext";
-
-interface Product {
-  id: number;
-  productName: string;
-  img: string;
-  cost: number;
-  [key: string]: unknown; // Cho phép các trường khác nếu có
-}
+import { useProductFetcher, type ApiData } from "../../CallApi/CallApiProduct";
+import { useAuth } from "../../../contexts/AuthContext.tsx";
+import { useCart } from "../../../contexts/CartContext";
 
 export const Header = () => {
+  // --- CODE CŨ GIỮ NGUYÊN ---
   const [valueOfFind, setValueOfFind] = useState<string>("");
-  const [productsData, setProductsData] = useState<Product[]>([]);
+  const [productsData, setProductsData] = useState<ApiData[]>([]);
   const [isFocus, setIsFocus] = useState(false);
   const timerRef = useRef<number | null>(null);
   const [isProductList, setIsProductList] = useState(false);
-  const [isHeaderHidden, setIsHeaderHidden] = useState(false);
-  const lastScrollY = useRef(0);
-
-  // Auth context for user info
-  const { user, isLoggedIn, isStaff, logout } = useAuth();
-
-  const productList = isProductList ? styles.active : "";
-  const headerHidden = isHeaderHidden ? styles["header-hidden"] : "";
-  const data = localStorage.getItem("shoppingCart") || "[]";
-  const ProductList = JSON.parse(data);
-
-  useEffect(() => {
-    const tmp = localStorage.getItem("products");
-    if (tmp) {
-      try {
-        setProductsData(JSON.parse(tmp));
-      } catch (e) {
-        console.error("Loi", e);
-      }
-    }
-  }, []);
-
+  const { cartCount } = useCart();
+  const { data: rawData } = useProductFetcher();
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
+
+  // --- PHẦN MỚI THÊM VÀO (STATE CHO MOBILE) ---
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // --- LOGIC CŨ ---
+  useEffect(() => {
+    if (rawData) {
+      setProductsData(rawData);
+    }
+  }, [rawData]);
+
   const handleSetValueOfFind = (value: string) => {
     setValueOfFind(value);
   };
@@ -49,7 +35,8 @@ export const Header = () => {
     setIsFocus(true);
   };
   const handleSetIsFocusFalse = () => {
-    setIsFocus(false);
+    // Thêm timeout nhỏ để kịp click vào item trước khi nó ẩn
+    setTimeout(() => setIsFocus(false), 200);
   };
   const handleProductMouseEnter = () => {
     if (timerRef.current) {
@@ -62,41 +49,14 @@ export const Header = () => {
       pathname: "/DetailProduct",
       search: createSearchParams({ productId: id.toString() }).toString(),
     });
+    // Thêm: Đóng menu mobile khi chọn sản phẩm
+    setIsMobileMenuOpen(false);
   };
-
   const handleProductMouseLeave = () => {
     timerRef.current = setTimeout(() => {
       setIsProductList(false);
     }, 100);
   };
-  useEffect(() => {
-    if (isHeaderHidden) {
-      setIsFocus(false); // Tắt trạng thái focus (ẩn danh sách sản phẩm) của thanh tìm kiếm
-
-      // (Tùy chọn) Nếu bạn muốn con trỏ chuột cũng thoát khỏi ô input (không nhấp nháy nữa)
-      // thì cần thêm một bước dùng useRef (xem hướng dẫn nâng cao bên dưới)
-    }
-  }, [isHeaderHidden]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-
-      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-        setIsHeaderHidden(true);
-      } else if (currentScrollY < lastScrollY.current) {
-        setIsHeaderHidden(false);
-      }
-
-      lastScrollY.current = currentScrollY;
-    };
-
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
   const landingPageLink = () => {
     window.location.href = "/";
   };
@@ -107,16 +67,24 @@ export const Header = () => {
     navigate({
       pathname: "/ShoppingCart",
     });
+    setIsMobileMenuOpen(false);
   };
 
-  const handleLogout = () => {
-    logout();
-    window.location.href = '/';
+  // --- HÀM MỚI: Toggle Menu Mobile ---
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
+
+  // Logic class cho dropdown product
+  const productListClass = isProductList ? styles.active : "";
+  // Logic class cho mobile menu nav
+  const navClass = isMobileMenuOpen
+    ? `${styles.navigation} ${styles.active}`
+    : styles.navigation;
 
   return (
     <>
-      <header id="header" className={headerHidden}>
+      <header id="hero" className={styles.header}>
         <div className={styles.logo}>
           <img
             src="/images/logo.png"
@@ -125,7 +93,18 @@ export const Header = () => {
           />
         </div>
 
-        <nav className={styles.navigation}>
+        {/* --- PHẦN MỚI: NÚT ICON MENU (Chỉ hiện trên mobile nhờ CSS) --- */}
+        <div className={styles.menuToggle} onClick={toggleMobileMenu}>
+          {/* Icon thay đổi tùy trạng thái: Bars hoặc X */}
+          <i
+            className={
+              isMobileMenuOpen ? "fa-solid fa-times" : "fa-solid fa-bars"
+            }
+          ></i>
+        </div>
+
+        {/* Cập nhật className ở đây: thay styles.navigation bằng navClass */}
+        <nav className={navClass}>
           <a href="/contact">Contact</a>
           <a
             href="/product"
@@ -133,89 +112,87 @@ export const Header = () => {
             id="product"
             onMouseEnter={handleProductMouseEnter}
             onMouseLeave={handleProductMouseLeave}
+            // Thêm sự kiện click để mở dropdown trên mobile (vì mobile không có hover)
+            onClick={(e) => {
+              e.preventDefault();
+              setIsProductList(!isProductList);
+            }}
           >
             Product
             <i className="fa-solid fa-chevron-down"></i>{" "}
           </a>
           <div
-            className={`${styles["list-product"]} ${productList}`}
+            className={`${styles["list-product"]} ${productListClass}`}
             id="listProduct"
             onMouseEnter={handleProductMouseEnter}
             onMouseLeave={handleProductMouseLeave}
           >
             <a href="/product">Tất cả sản phẩm</a>
-            <a href="/product?filter=prescription">Thuốc theo đơn</a>
-            <a href="/product?filter=otc">Thuốc không theo đơn</a>
+            <a href="/product#thuốc-theo-đơn">Thuốc theo đơn</a>
+            <a href="/product#thuốc-không-theo-đơn">Thuốc không theo đơn</a>
           </div>
-          <input
-            type="text"
-            className={styles["find-product"]}
-            required
-            placeholder="Tìm tên thuốc"
-            onFocus={handleSetIsFocusTrue}
-            onBlur={handleSetIsFocusFalse}
-            onClick={handleSetIsFocusTrue}
-            value={valueOfFind}
-            onChange={(e) => handleSetValueOfFind(e.target.value)}
-          />
-          {isFocus && (
-            <section className={styles.productsList}>
-              {productsData
-                .filter((product) =>
-                  product.productName.toLowerCase().includes(valueOfFind)
-                )
-                .map((item) => (
-                  <div
-                    className={styles.productItem}
-                    onMouseDown={() => toDetailProduct(item.id)}
-                  >
-                    <div className={styles.image}>
-                      <img src={item.img} alt="" />
+          <div className={styles.searchBox}>
+            <input
+              type="text"
+              className={styles["find-product"]}
+              required
+              placeholder="Tìm tên thuốc"
+              onFocus={handleSetIsFocusTrue}
+              onBlur={handleSetIsFocusFalse}
+              onClick={handleSetIsFocusTrue}
+              value={valueOfFind}
+              onChange={(e) => handleSetValueOfFind(e.target.value)}
+            />
+            {isFocus && rawData && (
+              <section className={styles.productsList}>
+                {productsData
+                  .filter((product) =>
+                    product.productName.toLowerCase().includes(valueOfFind),
+                  )
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className={styles.productItem}
+                      onMouseDown={() => toDetailProduct(Number(item.id))}
+                    >
+                      <div className={styles.image}>
+                        <img src={item.img} alt="" />
+                      </div>
+                      <div className={styles.description}>
+                        <p className={styles.productName}>{item.productName}</p>
+                        <br />
+                        <p className={styles.cost}> {item.cost}</p>
+                      </div>
                     </div>
-                    <div className={styles.description}>
-                      <p className={styles.productName}> {item.productName}</p>
-                      <br />
-                      <p className={styles.cost}>
-                        {" "}
-                        {new Intl.NumberFormat("vi-VN").format(item.cost)}đ
-                      </p>
-                    </div>
-                  </div>
-                ))}
-            </section>
-          )}
-        </nav>
-
-        {/* Right side - User info and Cart */}
-        <div className={styles.userActions}>
-          {isLoggedIn ? (
-            <>
-              {isStaff && user?.warehouse && (
-                <span className={styles.staffBadge}>
-                  {user.warehouse.name}
-                </span>
-              )}
-              <span className={styles.userName}>
-                {user?.fullName || 'User'}
-              </span>
-              <button className={styles.logoutBtn} onClick={handleLogout}>
-                Đăng xuất
-              </button>
-            </>
-          ) : (
-            <button className={styles["btnLogin-popup"]} onClick={loginPageLink}>
-              <i className="fa-solid fa-user"></i>
-              Đăng nhập
+                  ))}
+              </section>
+            )}
+          </div>
+          {!isLoggedIn && (
+            <button
+              className={styles["btnLogin-popup"]}
+              onClick={loginPageLink}
+            >
+              Login
             </button>
-          )}
+          )}{" "}
           <button
             className={styles["btnShoppingCart"]}
             onClick={toShoppingCart}
           >
-            <i className="fa-solid fa-cart-shopping"></i> Giỏ hàng
-            <div className={styles.countProduct}>{ProductList.length}</div>
+            {" "}
+            <i className="fa-solid fa-cart-shopping"></i> Giỏ hàng{" "}
+            <div className={styles.countProduct}>{cartCount}</div>
           </button>
-        </div>
+          {isLoggedIn && (
+            <button
+              className={styles.customerIcon}
+              onClick={() => (window.location.href = "/customer/info")}
+            >
+              <i className="fa-regular fa-user"></i>
+            </button>
+          )}
+        </nav>
       </header>
     </>
   );

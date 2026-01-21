@@ -1,18 +1,23 @@
 import React, { useState, type ChangeEvent, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import styles from "./ChangePass.module.css";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const ChangePassword = () => {
+  const navigate = useNavigate();
+  
   // State lưu trữ dữ liệu form
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     oldPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
 
-  // State cho thông báo lỗi và thành công
+  // State cho thông báo lỗi
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Xử lý khi người dùng nhập liệu
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -27,15 +32,15 @@ const ChangePassword = () => {
   };
 
   // Xử lý khi submit form
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
+    setLoading(true);
 
-    const { username, oldPassword, newPassword, confirmPassword } = formData;
+    const { email, oldPassword, newPassword, confirmPassword } = formData;
 
     // 1. Kiểm tra điền đầy đủ thông tin
-    if (!username || !oldPassword || !newPassword || !confirmPassword) {
+    if (!email || !oldPassword || !newPassword || !confirmPassword) {
       setError("Vui lòng điền đầy đủ tất cả các trường.");
       return;
     }
@@ -52,17 +57,39 @@ const ChangePassword = () => {
       return;
     }
 
-    // 4. Giả lập gọi API thành công
-    console.log("Dữ liệu gửi đi:", formData);
-    setSuccess("Đổi mật khẩu thành công! Vui lòng đăng nhập lại.");
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/api/auth/change-password",
+        {
+          email,
+          oldPassword,
+          newPassword,
+          confirmPassword,
+        },
+      );
 
-    // Reset form (tùy chọn)
-    setFormData({
-      username: "",
-      oldPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
+      toast.success(response.data.message);
+      // Reset form
+      setFormData({
+        email: "",
+        oldPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setLoading(false);
+      
+      // Tự động chuyển về trang chủ sau 1.5 giây
+      setTimeout(() => {
+        navigate("/");
+      }, 1500);
+    } catch (error: any) {
+      setLoading(false);
+      if (error.response) {
+        setError(error.response.data.message);
+      } else {
+        setError("Có lỗi xảy ra. Vui lòng thử lại.");
+      }
+    }
   };
 
   return (
@@ -72,22 +99,21 @@ const ChangePassword = () => {
         <h2 className={styles.title}>Đổi Mật Khẩu</h2>
 
         {error && <div className={styles.errorMessage}>{error}</div>}
-        {success && <div className={styles.successMessage}>{success}</div>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          {/* Tên tài khoản */}
+          {/* Email */}
           <div className={styles.inputGroup}>
-            <label htmlFor="username" className={styles.label}>
-              Tên tài khoản
+            <label htmlFor="email" className={styles.label}>
+              Email
             </label>
             <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
               onChange={handleChange}
               className={styles.input}
-              placeholder="Nhập tên tài khoản của bạn"
+              placeholder="Nhập email của bạn"
             />
           </div>
 
@@ -139,8 +165,8 @@ const ChangePassword = () => {
             />
           </div>
 
-          <button type="submit" className={styles.button}>
-            Cập nhật mật khẩu
+          <button type="submit" className={styles.button} disabled={loading}>
+            {loading ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
           </button>
         </form>
       </div>

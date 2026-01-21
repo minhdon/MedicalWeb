@@ -3,6 +3,7 @@ import {
     createOrder,
     getAllOrders,
     getOrderById,
+    getOrdersByUserId,
     updateOrder,
     deleteOrder,
     addItemToOrder,
@@ -15,6 +16,7 @@ const router = express.Router()
 // Order CRUD
 router.post("/create", createOrder)
 router.get("/getAll", getAllOrders)
+router.get("/user/:userId", getOrdersByUserId)
 router.get("/:id", getOrderById)
 router.put("/update/:id", updateOrder)
 router.delete("/delete/:id", deleteOrder)

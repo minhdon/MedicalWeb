@@ -214,6 +214,47 @@ export const getAllOrders = async (req, res) => {
     }
 };
 
+// Get Orders By User ID (for Customer Purchase History)
+export const getOrdersByUserId = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const orders = await SaleInvoice.find({ userId })
+            .populate('statusId', 'statusName')
+            .populate('warehouseId', 'warehouseName')
+            .sort({ createdAt: -1 });
+
+        // Get order details for each order
+        const formattedOrders = await Promise.all(orders.map(async (order) => {
+            const details = await SaleInvoiceDetail.find({ saleInvoiceId: order._id })
+                .populate('productId', 'productName');
+
+            const items = details.map(d => ({
+                productId: d.productId?._id,
+                productName: d.productId?.productName || 'Sản phẩm',
+                quantity: d.quantity,
+                unitPrice: d.unitPrice,
+                totalPrice: d.totalPrice
+            }));
+
+            return {
+                id: order._id,
+                items: items,
+                totalAmount: order.totalAmount,
+                status: order.statusId?.statusName || 'Pending',
+                paymentMethod: order.paymentMethod,
+                shippingAddress: order.shippingAddress,
+                createdAt: order.createdAt
+            };
+        }));
+
+        res.status(200).json(formattedOrders);
+    } catch (error) {
+        console.error("Get Orders By User Error:", error);
+        res.status(500).json({ message: "Lỗi lấy lịch sử mua hàng" });
+    }
+};
+
 // Get Order By ID (for Invoice display)
 export const getOrderById = async (req, res) => {
     try {
